@@ -1,7 +1,6 @@
-# PixelDiT Project Page
+# PixelDiT 
 
-This repository hosts the static site for the **PixelDiT: Pixel Diffusion Transformers for Image Generation** paper.  
-The page is designed as a lightweight, dependency-free experience so it can be deployed directly to GitHub Pages or any other static host.
+This repository hosts the static project page for the **PixelDiT: Pixel Diffusion Transformers for Image Generation** paper.  
 
 ### BibTeX
 

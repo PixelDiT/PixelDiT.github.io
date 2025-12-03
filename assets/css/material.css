@@ -1,0 +1,251 @@
+/* Material Design 3 动态交互样式 */
+:root {
+  /* 主色调 */
+  --md-primary: #6750A4;
+  --md-primary-hover: #7B65B1;
+  --md-secondary: #9C27B0;
+  --md-tertiary: #03DAC6;
+  
+  /* 表面和背景 */
+  --md-surface: #FFFBFE;
+  --md-surface-hover: #F5F0FF;
+  --md-background: linear-gradient(135deg, #F4ECFF 0%, #FFFFFF 100%);
+  
+  /* 文字颜色 */
+  --md-text-primary: #1C1B1F;
+  --md-text-secondary: #49454F;
+  --md-text-tertiary: #79747E;
+  
+  /* 间距系统 */
+  --md-spacing-xs: 4px;
+  --md-spacing-sm: 8px;
+  --md-spacing-md: 16px;
+  --md-spacing-lg: 24px;
+  --md-spacing-xl: 32px;
+  
+  /* 阴影系统 */
+  --md-elevation-1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
+  --md-elevation-2: 0 3px 6px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.12);
+  --md-elevation-3: 0 10px 20px rgba(0,0,0,0.15), 0 3px 6px rgba(0,0,0,0.10);
+  
+  /* 动画 */
+  --md-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --md-transition-sharp: all 0.2s cubic-bezier(0.4, 0, 0.6, 1);
+  
+  /* 圆角 */
+  --md-radius-sm: 4px;
+  --md-radius-md: 8px;
+  --md-radius-lg: 16px;
+  --md-radius-xl: 28px;
+  --md-radius-full: 9999px;
+}
+
+/* 按钮样式优化 */
+.btn {
+  border-radius: 100px;
+  padding: 12px 24px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  transition: var(--md-transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255,255,255,0.2);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.6s ease-out, height 0.6s ease-out;
+}
+
+.btn:active::after {
+  width: 200%;
+  height: 200%;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--md-elevation-2);
+}
+
+.btn-primary {
+  background-color: var(--md-primary);
+  border-color: var(--md-primary);
+}
+
+.btn-primary:hover {
+  background-color: var(--md-primary-hover);
+  border-color: var(--md-primary-hover);
+}
+
+/* 卡片和图片交互 */
+.card {
+  transition: var(--md-transition);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--md-elevation-1);
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--md-elevation-3);
+}
+
+/* 链接交互效果 */
+a, a:visited {
+  position: relative;
+  text-decoration: none;
+  color: var(--md-primary);
+  transition: var(--md-transition);
+}
+
+a::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  bottom: -2px;
+  left: 0;
+  background-color: var(--md-primary);
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.3s ease-out;
+}
+
+a:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* 导航栏优化 */
+.navbar {
+  background-color: var(--md-surface);
+  box-shadow: var(--md-elevation-1);
+  transition: var(--md-transition);
+}
+
+.navbar:hover {
+  box-shadow: var(--md-elevation-2);
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  .btn {
+    padding: 8px 16px;
+  }
+  
+  .card {
+    margin-bottom: 16px;
+  }
+}
+
+/* 按钮样式优化 */
+.btn {
+  border-radius: 100px;
+  padding: 12px 24px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  transition: var(--md-transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255,255,255,0.2);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.6s ease-out, height 0.6s ease-out;
+}
+
+.btn:active::after {
+  width: 200%;
+  height: 200%;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--md-elevation-2);
+}
+
+.btn-primary {
+  background-color: var(--md-primary);
+  border-color: var(--md-primary);
+}
+
+.btn-primary:hover {
+  background-color: var(--md-primary-hover);
+  border-color: var(--md-primary-hover);
+}
+
+/* 卡片和图片交互 */
+.card {
+  transition: var(--md-transition);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--md-elevation-1);
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--md-elevation-3);
+}
+
+/* 链接交互效果 */
+a, a:visited {
+  position: relative;
+  text-decoration: none;
+  color: var(--md-primary);
+  transition: var(--md-transition);
+}
+
+a::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  bottom: -2px;
+  left: 0;
+  background-color: var(--md-primary);
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.3s ease-out;
+}
+
+a:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* 导航栏优化 */
+.navbar {
+  background-color: var(--md-surface);
+  box-shadow: var(--md-elevation-1);
+  transition: var(--md-transition);
+}
+
+.navbar:hover {
+  box-shadow: var(--md-elevation-2);
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  .btn {
+    padding: 8px 16px;
+  }
+  
+  .card {
+    margin-bottom: 16px;
+  }
+}

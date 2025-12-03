@@ -281,7 +281,7 @@
 
     .authors-fancy {
       font-family: 'Google Sans', sans-serif;
-      color: #4a4a4a;
+      color: #76B900;
       font-size: 1.25rem;
       margin-bottom: 1.5rem;
     }
@@ -297,15 +297,15 @@
       border-bottom-color: #76B900;
     }
     .author-sup {
-        color: #76B900;
-        font-weight: bold;
+        color: #0a0a0a;
+        /* font-weight: bold; */
         margin-left: 2px;
     }
 
     .affiliations-fancy {
       font-family: 'Roboto', sans-serif;
       color: #666;
-      font-size: 1.1rem;
+      font-size: 1.25rem;
       margin-bottom: 2.5rem;
       font-weight: 300;
     }
@@ -315,9 +315,9 @@
         align-items: center;
     }
     .affiliations-fancy .aff-marker {
-        color: #76B900;
+        color: #666;
         margin-right: 4px;
-        font-weight: bold;
+        /* font-weight: bold; */
     }
 
     .btn-fancy-container {
@@ -502,14 +502,14 @@
           <!-- Title -->
           <h1 class="title publication-title-fancy">
             <span class="highlight-green" data-text="PixelDiT">PixelDiT</span><br>
-            <span class="abbr-highlight">Pixel</span> <span class="abbr-highlight abbr-highlight--di">Di</span>ffusion <span class="abbr-highlight abbr-highlight--t">T</span>ransformers<br>
+            <span class="abbr-highlight">Pixel</span> <span class="abbr-highlight">Di</span>ffusion <span class="abbr-highlight">T</span>ransformers<br>
             for Image Generation
           </h1>
 
           <!-- Authors -->
           <div class="authors-fancy">
             <span class="author-block">
-              Yongsheng Yu<sup class="author-sup">1,2♠</sup>,</span>
+              Yongsheng Yu<sup class="author-sup">1,2</sup>,</span>
             <span class="author-block">
               Wei Xiong<sup class="author-sup">1†</sup>,</span>
             <span class="author-block">
@@ -528,7 +528,8 @@
             <span class="aff-item"><span class="aff-marker">1</span>NVIDIA</span>
             <span class="aff-item"><span class="aff-marker">2</span>University of Rochester</span>
             <br>
-            <span style="font-size: 0.9rem; opacity: 0.6; margin-top: 8px; display: inline-block;">(♠Internship at NVIDIA; †Project Lead)</span>
+            <span class="aff-item">†Project Lead and Main Advising</span>
+            <!-- <span style="font-size: 0.9rem; opacity: 0.6; margin-top: 8px; display: inline-block;">†Project Lead</span> -->
           </div>
 
           <!-- Buttons -->
@@ -693,8 +694,8 @@
     <div class="flowedit-card">
       <div class="columns is-vcentered is-variable is-5">
         <div class="column is-5">
-          <p class="subtitle is-6 has-text-weight-semibold">FlowEdit Consistency Check</p>
-          <h2 class="title is-4">PixelDiT edits stay faithful</h2>
+          <p class="subtitle is-4 has-text-weight-semibold">Content Consistency in Image Editing</p>
+          <h2 class="title is-5">PixelDiT edits stay faithful!</h2>
           <p>
             FlowEdit<sup><a href="https://arxiv.org/abs/2406.11830" target="_blank" rel="noopener">†</a></sup> exposes how VAE reconstructions from FLUX can warp fine text when tracing
             the full flow path (<code>nmin</code>=0). The comparison shows PixelDiT keeping the brick-wall lettering intact because it denoises directly in pixel space—no lossy VAE, no baked-in artifacts.

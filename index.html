@@ -287,6 +287,19 @@
       margin-bottom: 1.5rem;
     }
 
+    .author-link {
+      color: inherit;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(118, 185, 0, 0.25);
+      padding-bottom: 2px;
+      transition: color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .author-link:hover {
+      color: #76B900;
+      border-color: #76B900;
+    }
+
     .authors-fancy a {
       color: #2a2a2a;
       text-decoration: none;
@@ -316,9 +329,17 @@
         align-items: center;
     }
     .affiliations-fancy .aff-marker {
-        color: #666;
-        margin-right: 4px;
-        /* font-weight: bold; */
+        color: #1d3105;
+        margin-right: 6px;
+        background: #eaf5d9;
+        border-radius: 999px;
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.9rem;
     }
 
     .btn-fancy-container {
@@ -415,8 +436,9 @@
     }
 
     .hero-teaser-track {
-      display: inline-flex;
+      display: flex;
       flex-wrap: nowrap;
+      min-width: 100%;
       animation: teaser-scroll 60s linear infinite;
     }
 
@@ -425,7 +447,7 @@
     }
 
     .hero-teaser-strip {
-      display: inline-flex;
+      display: flex;
       gap: 22px;
       flex: 0 0 auto;
     }
@@ -446,7 +468,9 @@
 
     .hero-teaser-tile img {
       width: 100%;
+      min-width: 100%;
       height: 100%;
+      min-height: 100%;
       object-fit: cover;
       display: block;
     }
@@ -489,6 +513,10 @@
       .flowedit-card {
         padding: 2rem;
       }
+      .hero-teaser-tile {
+        height: 220px;
+        min-width: 180px;
+      }
     }
   </style>
 </head>
@@ -510,17 +538,17 @@
           <!-- Authors -->
           <div class="authors-fancy">
             <span class="author-block">
-              Yongsheng Yu<sup class="author-sup">1,2</sup>,</span>
+              <a class="author-link" href="https://www.yongshengyu.com/" target="_blank" rel="noopener">Yongsheng Yu</a><sup class="author-sup">1,2</sup>,</span>
             <span class="author-block">
-              Wei Xiong<sup class="author-sup">1†</sup>,</span>
+              <a class="author-link" href="https://wxiong.me/" target="_blank" rel="noopener">Wei Xiong</a><sup class="author-sup">1†</sup>,</span>
             <span class="author-block">
-              Weili Nie<sup class="author-sup">1</sup>,</span>
+              <a class="author-link" href="https://weilinie.github.io/" target="_blank" rel="noopener">Weili Nie</a><sup class="author-sup">1</sup>,</span>
             <span class="author-block">
-              Yichen Sheng<sup class="author-sup">1</sup>,</span>
+              <a class="author-link" href="https://shengcn.github.io/" target="_blank" rel="noopener">Yichen Sheng</a><sup class="author-sup">1</sup>,</span>
             <span class="author-block">
-              Shiqiu Liu<sup class="author-sup">1</sup>,</span>
+              <a class="author-link" href="http://behindthepixels.io/" target="_blank" rel="noopener">Shiqiu Liu</a><sup class="author-sup">1</sup>,</span>
             <span class="author-block">
-              Jiebo Luo<sup class="author-sup">2</sup>
+              <a class="author-link" href="https://www.cs.rochester.edu/u/jluo/" target="_blank" rel="noopener">Jiebo Luo</a><sup class="author-sup">2</sup>
             </span>
           </div>
 
@@ -529,7 +557,7 @@
             <span class="aff-item"><span class="aff-marker">1</span>NVIDIA</span>
             <span class="aff-item"><span class="aff-marker">2</span>University of Rochester</span>
             <br>
-            <span class="aff-item">†Project Lead and Main Advising</span>
+            <span class="aff-item" style="opacity: 0.8; display: inline-block;">†Project Lead and Main Advising</span>
             <!-- <span style="font-size: 0.9rem; opacity: 0.6; margin-top: 8px; display: inline-block;">†Project Lead</span> -->
           </div>
 
@@ -679,6 +707,12 @@
               <img src="./image_assets/figures/class-pixeldit-archi.png" alt="PixelDiT dual-level architecture diagram showing patch and pixel pathways">
               <figcaption class="mt-2">
                 PixelDiT uses a <b>Patch-Level Pathway</b> for global semantics and a <b>Pixel-Level Pathway</b> for texture refinement, connected via Pixel-wise AdaLN.
+              </figcaption>
+            </figure>
+            <figure class="image has-text-centered mt-5">
+              <img src="./image_assets/figures/t2i-pixeldit-archi.png" alt="System and user prompts feeding semantic and pixel tokens through AdaLN-Zero into the joint DiT block.">
+              <figcaption class="mt-2">
+                Text prompts feed semantic tokens. The patch-level MM-DiT handles global semantics while the pixel pathway performs dense refinement.
               </figcaption>
             </figure>
         </div>

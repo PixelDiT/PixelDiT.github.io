@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>document.documentElement.classList.add('pd2-js');</script>
+  <title>PixelDiT2: Representation-Grounded Pixel Diffusion Transformers</title>
+  <meta name="description" content="PixelDiT2 encodes the noisy image with a frozen vision encoder and uses its per-patch features to ground a pixel-space diffusion transformer at every denoising step. FID 1.46 on ImageNet 256x256 after 600 epochs and 1.48 on ImageNet 512x512 after 680 epochs.">
+  <meta name="author" content="Yongsheng Yu, Wei Xiong, Yichen Sheng, Shiqiu Liu, Jiebo Luo">
+  <meta name="theme-color" content="#fcfcfc">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="PixelDiT2: Representation-Grounded Pixel Diffusion Transformers">
+  <meta property="og:description" content="A frozen vision encoder reads the noisy image; its per-patch features ground the pixel DiT throughout denoising.">
+  <meta property="og:url" content="https://pixeldit.github.io/pixeldit2/">
+  <meta property="og:image" content="https://pixeldit.github.io/pixeldit2/assets/img/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:image" content="https://pixeldit.github.io/pixeldit2/assets/img/og.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231a1a1a'/%3E%3Crect x='7' y='7' width='8' height='8' fill='%2376b900'/%3E%3Crect x='17' y='7' width='8' height='8' fill='%23ffffff' opacity='.85'/%3E%3Crect x='7' y='17' width='8' height='8' fill='%23ffffff' opacity='.55'/%3E%3Crect x='17' y='17' width='8' height='8' fill='%2376b900' opacity='.6'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/vendor/fonts/fonts.css">
+  <link rel="stylesheet" href="assets/vendor/katex/katex.min.css">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/sections/10-hero.css">
+  <link rel="stylesheet" href="assets/css/sections/20-why.css">
+  <link rel="stylesheet" href="assets/css/sections/30-idea.css">
+  <link rel="stylesheet" href="assets/css/sections/40-method.css">
+  <link rel="stylesheet" href="assets/css/sections/50-position.css">
+  <link rel="stylesheet" href="assets/css/sections/60-results.css">
+  <link rel="stylesheet" href="assets/css/sections/70-repa.css">
+  <link rel="stylesheet" href="assets/css/sections/80-ablations.css">
+  <link rel="stylesheet" href="assets/css/sections/90-inside.css">
+  <link rel="stylesheet" href="assets/css/sections/95-recipe.css">
+  <link rel="stylesheet" href="assets/css/sections/97-samples.css">
+  <link rel="stylesheet" href="assets/css/sections/98-limits.css">
+  <link rel="stylesheet" href="assets/css/sections/99-bibtex.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <nav class="nav" aria-label="Sections">
+    <div class="full">
+      <a class="nav-brand" href="#top"><span>PixelDiT</span>2</a>
+      <div class="nav-links">
+        <a href="#why">Why</a>
+        <a href="#idea">Idea</a>
+        <a href="#method">Method</a>
+        <a href="#position">Context</a>
+        <a href="#results">Results</a>
+        <a href="#repa">REPA</a>
+        <a href="#ablations">Ablations</a>
+        <a href="#inside">Inside</a>
+        <a href="#recipe">Recipe</a>
+        <a href="#samples">Samples</a>
+        <a href="#limits">Limits</a>
+        <a href="#bibtex">Cite</a>
+      </div>
+      <button class="nav-pause" type="button" aria-pressed="false" title="Pause all animations"><span class="np-ic" aria-hidden="true"></span><span class="np-txt">Pause motion</span></button>
+    </div>
+    <div class="nav-progress" aria-hidden="true"></div>
+  </nav>
+  <main id="main" tabindex="-1">
+<section class="sec" id="top" aria-labelledby="hero-title">
+  <div class="hero-bg" aria-hidden="true"></div>
+  <header class="hero-head">
+    <h1 class="hero-title hi" id="hero-title" style="--d: 0"><span class="hero-word">PixelDiT2</span></h1>
+    <p class="hero-sub hi" style="--d: 260">Representation-Grounded Pixel Diffusion Transformers</p>
+    <p class="hero-authors">
+      <span class="au hi" style="--d: 420"><a href="https://www.yongshengyu.com/" target="_blank" rel="noopener">Yongsheng Yu</a><sup>1,2*</sup></span>
+      <span class="au hi" style="--d: 480"><a href="https://wxiong.me/" target="_blank" rel="noopener">Wei Xiong</a><sup>1†</sup></span>
+      <span class="au hi" style="--d: 540"><a href="https://shengcn.github.io/" target="_blank" rel="noopener">Yichen Sheng</a><sup>1</sup></span>
+      <span class="au hi" style="--d: 600"><a href="http://behindthepixels.io/" target="_blank" rel="noopener">Shiqiu Liu</a><sup>1</sup></span>
+      <span class="au hi" style="--d: 660"><a href="https://www.cs.rochester.edu/u/jluo/" target="_blank" rel="noopener">Jiebo Luo</a><sup>2</sup></span>
+    </p>
+    <p class="hero-affs hi" style="--d: 760"><span><sup>1</sup>NVIDIA</span><span><sup>2</sup>University of Rochester</span></p>
+    <p class="hero-notes hi" style="--d: 820"><span>* Work was done while Yongsheng was an intern at NVIDIA.</span><span>† Project Lead and Main Advising</span></p>
+    <nav class="hero-links" aria-label="Paper links">
+      <a class="btn hi" style="--d: 900" href="https://arxiv.org/abs/2609.24919" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.75h5.2L12.5 5v9.25H4z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M9 1.9V5.3h3.3M6.2 8.2h4M6.2 10.8h4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        arXiv
+      </a>
+      <a class="btn hi" style="--d: 960" href="https://arxiv.org/pdf/2609.24919" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8.2M4.6 7l3.4 3.4L11.4 7M3 13.6h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        PDF
+      </a>
+      <a class="btn hi" style="--d: 1020" href="https://github.com/NVlabs/PixelDiT" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        Code
+      </a>
+      <a class="btn hi" style="--d: 1080" href="https://huggingface.co/collections/nvidia/pixeldit" target="_blank" rel="noopener">
+        <span class="btn-emoji" aria-hidden="true">&#129303;</span>
+        Models
+      </a>
+      <a class="btn hi" style="--d: 1140" href="#bibtex">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.6 3.5C3.9 4.3 3 5.7 3 7.6V12h3.8V8.2H4.6c0-1.5.6-2.5 1.8-3.2zM11.6 3.5c-1.7.8-2.6 2.2-2.6 4.1V12h3.8V8.2h-2.2c0-1.5.6-2.5 1.8-3.2z" fill="currentColor"/></svg>
+        BibTeX
+      </a>
+      <a class="btn btn--ghost hi" style="--d: 1200" href="https://pixeldit.github.io/" target="_blank" rel="noopener">
+        PixelDiT (v1)
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3.5h7v7M12.2 3.8 3.8 12.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+    </nav>
+  </header>
+  <p class="hero-tldr">
+    <span class="tldr-k">TL;DR</span>
+    A frozen vision encoder reads the noisy image; its per-patch features ground a pixel diffusion transformer at every denoising step.
+  </p>
+  <figure class="hero-mosaic fig">
+    <div class="mosaic" data-hero-mosaic>
+      <div class="tile" style="--i: 0"><img class="clean" src="assets/img/s512/lesser_panda.webp" srcset="assets/img/s512/thumb/lesser_panda.webp 256w, assets/img/s512/lesser_panda.webp 512w" sizes="(max-width: 640px) 32vw, 224px" width="512" height="512" alt="PixelDiT2 sample, ImageNet class: lesser panda"><span class="cls" aria-hidden="true">lesser panda</span></div>
+      <div class="tile" style="--i: 1"><img class="clean" src="assets/img/s512/espresso.webp" srcset="assets/img/s512/thumb/espresso.webp 256w, assets/img/s512/espresso.webp 512w" sizes="(max-width: 640px) 32vw, 224px" width="512" height="512" alt="PixelDiT2 sample, ImageNet class: espresso"><span class="cls" aria-hidden="true">espresso</span></div>
+      <div class="tile" style="--i: 2"><img class="clean" src="assets/img/s512/rhodesian_ridgeback.webp" srcset="assets/img/s512/thumb/rhodesian_ridgeback.webp 256w, assets/img/s512/rhodesian_ridgeback.webp 512w" sizes="(max-width: 640px) 32vw, 224px" width="512" height="512" alt="PixelDiT2 sample, ImageNet class: Rhodesian ridgeback"><span class="cls" aria-hidden="true">Rhodesian ridgeback</span></div>
+      <div class="tile" style="--i: 3"><img class="clean" src="assets/img/s512/volcano.webp" srcset="assets/img/s512/thumb/volcano.webp 256w, assets/img/s512/volcano.webp 512w" sizes="(max-width: 640px) 32vw, 224px" width="512" height="512" alt="PixelDiT2 sample, ImageNet class: volcano"><span class="cls" aria-hidden="true">volcano</span></div>
+      <div class="tile" style="--i: 4"><img class="clean" src="assets/img/s512/bottlecap.webp" srcset="assets/img/s512/thumb/bottlecap.webp 256w, assets/img/s512/bottlecap.webp 512w" sizes="(max-width: 640px) 32vw, 224px" width="512" height="512" alt="PixelDiT2 sample, ImageNet class: bottlecap"><span class="cls" aria-hidden="true">bottlecap</span></div>
+      <div class="tile" style="--i: 5"><img class="clean" src="assets/img/s512/hot_pot.webp" srcset="assets/img/s512/thumb/hot_pot.webp 256w, assets/img/s512/hot_pot.webp 512w" sizes="(max-width: 640px) 32vw, 224px" width="512" height="512" alt="PixelDiT2 sample, ImageNet class: hot pot"><span class="cls" aria-hidden="true">hot pot</span></div>
+      <div class="tile" style="--i: 6"><img class="clean" src="assets/img/s512/fox_squirrel.webp" srcset="assets/img/s512/thumb/fox_squirrel.webp 256w, assets/img/s512/fox_squirrel.webp 512w" sizes="(max-width: 640px) 32vw, 224px" width="512" height="512" alt="PixelDiT2 sample, ImageNet class: fox squirrel"><span class="cls" aria-hidden="true">fox squirrel</span></div>
+      <div class="tile" style="--i: 7"><img class="clean" src="assets/img/s512/car_mirror.webp" srcset="assets/img/s512/thumb/car_mirror.webp 256w, assets/img/s512/car_mirror.webp 512w" sizes="(max-width: 640px) 32vw, 224px" width="512" height="512" alt="PixelDiT2 sample, ImageNet class: car mirror"><span class="cls" aria-hidden="true">car mirror</span></div>
+      <div class="tile" style="--i: 8"><img class="clean" src="assets/img/s512/madagascar_cat.webp" srcset="assets/img/s512/thumb/madagascar_cat.webp 256w, assets/img/s512/madagascar_cat.webp 512w" sizes="(max-width: 640px) 32vw, 224px" width="512" height="512" alt="PixelDiT2 sample, ImageNet class: Madagascar cat"><span class="cls" aria-hidden="true">Madagascar cat</span></div>
+      <div class="tile" style="--i: 9"><img class="clean" src="assets/img/s512/bonnet.webp" srcset="assets/img/s512/thumb/bonnet.webp 256w, assets/img/s512/bonnet.webp 512w" sizes="(max-width: 640px) 32vw, 224px" width="512" height="512" alt="PixelDiT2 sample, ImageNet class: bonnet"><span class="cls" aria-hidden="true">bonnet</span></div>
+    </div>
+    <figcaption class="figcap hero-cap">
+      Class-conditional ImageNet 512×512 samples from PixelDiT2.<span class="cap-live"> The noise shows the forward process
+      \(x_t = t\,x + (1-t)\,\varepsilon\) (\(t = 1\) clean, \(t = 0\) noise) over a 16-px patch grid, replayed when you hover, tap or focus a tile;
+      it is not the sampling trajectory.</span>
+    </figcaption>
+  </figure>
+  <div class="hero-stats" data-reveal-stagger="110">
+    <div class="stat" data-reveal>
+      <div class="stat-num"><span data-count="fid256">1.46</span></div>
+      <div class="stat-k">FID-50K <span class="stat-hint">lower is better</span></div>
+      <div class="stat-d">ImageNet 256×256 · <span data-bind="epochs256">600</span> epochs <span class="src">Tab. 2, 14</span></div>
+      <div class="ruler" data-ruler="fid256"></div>
+    </div>
+    <div class="stat" data-reveal>
+      <div class="stat-num"><span data-count="fid512">1.48</span></div>
+      <div class="stat-k">FID-50K <span class="stat-hint">lower is better</span></div>
+      <div class="stat-d">ImageNet 512×512 · <span data-bind="epochs512">680</span> epochs <span class="src">Tab. 3</span></div>
+      <div class="ruler" data-ruler="fid512"></div>
+    </div>
+    <div class="stat stat--ratio" data-reveal>
+      <div class="stat-num"><span data-count="ratio">4.25</span><span class="stat-x">×</span></div>
+      <div class="stat-k">lower epoch budget</div>
+      <div class="stat-d">At 512×512, FID <span data-bind="fid512_ep200">1.78</span> at epoch 200 surpasses PixelDiT's <span data-bind="pixeldit512fid">1.81</span> at epoch 850. <span class="src">Fig. 1</span></div>
+      <div class="ruler" data-ruler="ratio"></div>
+    </div>
+  </div>
+</section>
+<section class="sec" id="why">
+  <header class="sec-head wrap">
+    <p class="kicker"><span class="kicker-num">01</span> Motivation</p>
+    <h2>Pixel diffusion learns two things at once</h2>
+    <p class="lede">Pixel diffusion has narrowed the quality gap with latent diffusion, yet it still converges more slowly and lags in final quality. We argue that a key reason is the lack of an explicit <em>representation prior</em>.</p>
+  </header>
+  <div class="wide">
+  <figure class="fig why-fig" data-reveal>
+    <div class="stage why-stage">
+      <div class="stage-toolbar why-bar">
+        <span class="stage-tag">Schematic · not data</span>
+        <div class="why-ctrl">
+          <div class="seg" role="group" aria-label="Focus one pipeline">
+            <button type="button" data-mode="all" aria-pressed="true">All three</button>
+            <button type="button" data-mode="0" aria-pressed="false">Latent</button>
+            <button type="button" data-mode="1" aria-pressed="false">Pixel</button>
+            <button type="button" data-mode="2" aria-pressed="false">PixelDiT2</button>
+          </div>
+          <button type="button" class="why-replay" aria-label="Replay the animation">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.2 8a5.2 5.2 0 1 1-1.6-3.75" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M12.6 1.8v3.1H9.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Replay
+          </button>
+        </div>
+      </div>
+      <div class="why-lanes">
+        <div class="why-lane" data-lane="0">
+          <h3 class="why-lane-title"><span class="why-k">A</span>Latent diffusion</h3>
+          <div class="why-svg"></div>
+          <p class="why-lane-cap">A pretrained autoencoder (AE) partly organizes the space before denoising. A decoder maps latents back to pixels.</p>
+        </div>
+        <div class="why-lane" data-lane="1">
+          <h3 class="why-lane-title"><span class="why-k">B</span>Pixel diffusion <span class="why-eg">e.g. PixelDiT, JiT</span></h3>
+          <div class="why-svg"></div>
+          <p class="why-lane-cap">Starting from raw RGB, one network must learn denoising representations and pixel generation at the same time.</p>
+        </div>
+        <div class="why-lane why-lane--ours" data-lane="2">
+          <h3 class="why-lane-title"><span class="why-k">C</span>PixelDiT2</h3>
+          <div class="why-svg"></div>
+          <p class="why-lane-cap">A frozen encoder \(\E\) reads \(x_t\); the timestep-conditioned \(\Pg\) maps its tokens to grounding tokens \(\g\). No autoencoder, no decoder.</p>
+        </div>
+      </div>
+      <div class="why-key" role="group" aria-label="Chip color legend">
+        <span class="why-key-h">Where the representation comes from</span>
+        <span class="why-key-i"><i class="why-chip why-chip--w"></i>learned inside the DiT</span>
+        <span class="why-key-i"><i class="why-chip why-chip--a"></i>partly organized by the AE</span>
+        <span class="why-key-i"><i class="why-chip why-chip--g"></i>guided by grounding tokens \(\g\)</span>
+      </div>
+    </div>
+    <figcaption class="figcap">Where the representation job sits in each pipeline. The thumbnail is a PixelDiT2 sample; \(x_t = t\,x + (1-t)\,\varepsilon\) is the forward process applied to it, not a sampling trajectory. <span class="src">Intro · Fig. 1</span></figcaption>
+  </figure>
+  </div>
+  <div class="wrap why-text">
+    <p data-reveal>Learning denoising representations and pixel generation in one network is a coupling that can make learning harder and may increase the training budget. <b>PixelDiT2</b> decouples representation learning from pixel generation without an autoencoder or a latent reconstruction bottleneck: a frozen vision encoder provides explicit per-patch representation guidance throughout denoising, so the pixel diffusion transformer can focus more on pixel generation.</p>
+  </div>
+</section>
+<section class="sec" id="idea">
+  <header class="sec-head wrap">
+    <p class="kicker"><span class="kicker-num">02</span> The idea</p>
+    <h2>Read the noisy image with a frozen encoder</h2>
+    <p class="lede">At every denoising step, a frozen vision encoder reads the noisy image \(x_t\); after a timestep-conditioned projection, its per-patch features modulate the pixel DiT through spatial AdaLN, in training and in sampling. We call this <em>representation grounding</em>; diffusion stays fully in pixel space.</p>
+  </header>
+  <div class="wide">
+    <figure class="stage arch-stage fig" data-reveal="fade">
+      <div class="arch-bar stage-toolbar">
+        <span class="stage-tag">Schematic<span class="tag-long"> · one denoising step</span> · after Fig. 1</span>
+        <span class="arch-bar-r">
+          <span class="t-readout arch-t" aria-hidden="true">t = 0.50</span>
+          <button class="arch-pause" type="button" aria-pressed="false" aria-label="Pause the animation">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path class="ic-pause" d="M5 3.5v9M11 3.5v9"/><path class="ic-play" d="M5 3.2v9.6l8-4.8z"/></svg>
+            <span class="arch-pause-txt">Pause</span>
+          </button>
+        </span>
+      </div>
+      <div class="arch-body">
+        <div class="arch" data-arch role="group" aria-label="PixelDiT2 architecture, schematic. The noisy image x_t is patchified into the DiT blocks and, in parallel, read by a frozen vision encoder; its raw tokens pass through the timestep-conditioned projection P_g to become grounding tokens g_t, which modulate the DiT blocks through spatial AdaLN. Timestep and class embeddings also enter the DiT blocks. The DiT outputs a clean-image estimate."></div>
+        <div class="arch-side">
+          <div class="arch-info" aria-live="polite">
+            <p class="ai-title">One denoising step</p>
+            <p class="ai-text">Hover, focus, or tap a part of the diagram for a one-line description.</p>
+          </div>
+          <ul class="arch-key" aria-label="Color key">
+            <li><span class="kk kk--x"></span><span>pixels \(x_t\)</span></li>
+            <li><span class="kk kk--e"></span><span>frozen vision encoder \(\E\), <span class="nowrap">raw tokens \(\gbar\)</span></span></li>
+            <li><span class="kk kk--g"></span><span>projection \(\Pg\), <span class="nowrap">grounding tokens \(\g\)</span></span></li>
+            <li><span class="kk kk--t"></span><span>timestep \(t\)</span></li>
+          </ul>
+        </div>
+      </div>
+      <figcaption class="stage-cap arch-cap">
+        Token grids are drawn as 4×4 for readability; a 256 px image gives 16×16 tokens on both paths, since the encoder and the DiT share 16-px patches.
+        The noisy input is drawn with the forward process \(x_t = t\,x + (1-t)\,\varepsilon\).
+      </figcaption>
+    </figure>
+    <div class="idea-cards grid-3" data-reveal-stagger="110">
+      <article class="icard icard--e" data-reveal>
+        <svg class="icard-ic" viewBox="0 0 40 40" aria-hidden="true"><rect x="3" y="7" width="34" height="26" rx="6"/><path d="M15.6 19.4v-2.9a4.4 4.4 0 0 1 8.8 0v2.9"/><rect class="ic-lock" x="12.8" y="19" width="14.4" height="9.6" rx="2"/></svg>
+        <h3>Frozen vision encoder \(\E\)</h3>
+        <p>DINOv3, kept frozen in training and inference. It reads the noisy \(x_t\), not the clean image, and returns one token per 16-px patch on the same grid as the DiT.</p>
+        <p class="icard-meta">S/16 at 256 px · B/16 at 512 px <span class="src">§3.2, Tab. 10</span></p>
+      </article>
+      <article class="icard icard--g" data-reveal>
+        <svg class="icard-ic" viewBox="0 0 40 40" aria-hidden="true"><rect x="3" y="7" width="34" height="26" rx="6"/><path d="M11 20h13M20 15.5l4.5 4.5-4.5 4.5M29.5 12.5v15"/></svg>
+        <h3>Timestep-conditioned projection \(\Pg\)</h3>
+        <p>One DiT-style block with AdaLN on the timestep embedding. It maps raw tokens \(\gbar\) to grounding tokens \(\g\) and absorbs the encoder's drift on noisy inputs.</p>
+        <p class="icard-meta">Noise-level adaptation is confined to \(\Pg\) <span class="src">Tab. 7, 8</span></p>
+      </article>
+      <article class="icard icard--a" data-reveal>
+        <svg class="icard-ic" viewBox="0 0 40 40" aria-hidden="true"><g><rect x="6" y="6" width="8" height="8" rx="1.5"/><rect x="16" y="6" width="8" height="8" rx="1.5"/><rect x="26" y="6" width="8" height="8" rx="1.5"/><rect x="6" y="16" width="8" height="8" rx="1.5"/><rect x="16" y="16" width="8" height="8" rx="1.5"/><rect x="26" y="16" width="8" height="8" rx="1.5"/><rect x="6" y="26" width="8" height="8" rx="1.5"/><rect x="16" y="26" width="8" height="8" rx="1.5"/><rect x="26" y="26" width="8" height="8" rx="1.5"/></g></svg>
+        <h3>Spatial AdaLN</h3>
+        <p>\(\g\) is the AdaLN condition of the DiT blocks, applied element-wise on the shared patch grid, so each patch is modulated by its own token. It stays active at inference.</p>
+        <p class="icard-meta">Lowest FID of the four injection mechanisms tested (H/16, epoch 600) <span class="src">Tab. 5</span></p>
+      </article>
+    </div>
+  </div>
+</section>
+<section class="sec" id="method" aria-labelledby="method-title">
+  <header class="sec-head wrap">
+    <p class="kicker"><span class="kicker-num">03</span> Method</p>
+    <h2 id="method-title">Representation grounding, step by step</h2>
+    <p class="lede">Steps 1–2 set up a plain single-path pixel DiT. Steps 3–7 add representation grounding, from the frozen encoder to the sampling loop.</p>
+  </header>
+  <div class="m-scrolly wide">
+    <div class="m-stage-col">
+      <figure class="stage m-stage" aria-label="Animated schematic of PixelDiT2. The stage follows the step text: rectified flow in pixel space, x-prediction with a velocity loss, a frozen encoder that reads the noisy image, the drift of its features with noise, the timestep-conditioned projection, spatial AdaLN, and the sampling loop.">
+        <div class="m-world-wrap"><div class="m-world"></div></div>
+        <div class="m-bar">
+          <div class="m-bar-l">
+            <div class="m-dots" role="group" aria-label="Jump to step"></div>
+            <span class="m-bar-title" aria-live="polite"></span>
+          </div>
+          <div class="m-bar-r">
+            <div class="m-ctl m-ctl-t" role="group" aria-label="Timestep t, measured values of Fig. 4a">
+              <span class="m-ctl-lab" aria-hidden="true">t</span>
+              <div class="seg m-tseg"></div>
+            </div>
+            <div class="m-ctl m-ctl-heun" aria-hidden="true">
+              <span class="m-heun-txt">Heun<span class="m-heun-w"> step</span> <b class="m-heun-k">0</b> / 50</span>
+              <span class="m-heun-bar"><i></i></span>
+            </div>
+          </div>
+        </div>
+      </figure>
+    </div>
+    <ol class="m-steps">
+      <li class="m-step" data-scene="1a" data-step="1">
+        <div class="m-step-in">
+          <p class="m-step-num">Step 1</p>
+          <h3>Pixel-space rectified flow</h3>
+          <p>PixelDiT2 denoises raw pixels. A noisy sample \(x_t\) lies on the straight line from noise \(\textcolor{#b5651d}{\varepsilon}\) to the clean image <span class="nowrap">\(x\).</span></p>
+          <div class="m-eq">\[x_t = \textcolor{#b5651d}{t}\,x + (1-\textcolor{#b5651d}{t})\,\textcolor{#b5651d}{\varepsilon},\qquad x_1 = x,\quad x_0 = \textcolor{#b5651d}{\varepsilon}\]</div>
+        </div>
+      </li>
+      <li class="m-step m-step--sub" data-scene="1b" data-step="1">
+        <div class="m-step-in">
+          <p>The DiT cuts \(x_t\) into 16&thinsp;×&thinsp;16-pixel patches. A 256&thinsp;×&thinsp;256 image becomes \(L = 16 \times 16 = 256\) tokens.</p>
+        </div>
+      </li>
+      <li class="m-step" data-scene="2" data-step="2">
+        <div class="m-step-in">
+          <p class="m-step-num">Step 2</p>
+          <h3>Predict the clean image, train on velocity</h3>
+          <p>The DiT reads <span class="nowrap">\(x_t\),</span> the timestep <span class="nowrap">\(\textcolor{#b5651d}{t}\),</span> and the class label <span class="nowrap">\(y\),</span> and predicts the clean image <span class="nowrap">\(\hat x_\theta\).</span> The loss is taken on the velocity <span class="nowrap">\(v = x - \textcolor{#b5651d}{\varepsilon}\).</span></p>
+          <div class="m-eq">\[\hat v_\theta = \frac{\hat x_\theta - x_t}{\max(1-\textcolor{#b5651d}{t},\ \tau)},\qquad \mathcal L_{\text{diff}} = \mathbb E\,\bigl\lVert \hat v_\theta - v \bigr\rVert_2^2\]</div>
+          <p class="m-note">\(\tau = 0.05\) guards against divergence as <span class="nowrap">\(\textcolor{#b5651d}{t} \to 1\).</span> Up to here, this is a single-path pixel DiT, similar to PixelDiT’s patch-level path, with <span class="nowrap">x-prediction</span> and a velocity loss following JiT.</p>
+        </div>
+      </li>
+      <li class="m-step" data-scene="3" data-step="3">
+        <div class="m-step-in">
+          <p class="m-step-num">Step 3</p>
+          <h3>A frozen encoder reads the noisy image</h3>
+          <p>A pretrained DINOv3 encoder \(\textcolor{#3b73b9}{\mathcal E}\) reads \(x_t\), not the clean image, and stays frozen. Its patch size is also 16, so its \(L\) raw tokens align one-to-one with the DiT’s patch tokens.</p>
+          <div class="m-eq">\[\textcolor{#3b73b9}{\bar{\mathbf g}_t} = \textcolor{#3b73b9}{\mathcal E}(x_t) \in \mathbb R^{L \times d_{\mathcal E}}\]</div>
+          <p class="m-note">DINOv3-S/16 at 256&thinsp;px; DINOv3-B/16 at 512&thinsp;px, where the grid is 32&thinsp;×&thinsp;32.</p>
+        </div>
+      </li>
+      <li class="m-step m-step--long" data-scene="4" data-step="4">
+        <div class="m-step-in">
+          <p class="m-step-num">Step 4</p>
+          <h3>The encoder never saw noise</h3>
+          <p>\(\textcolor{#3b73b9}{\mathcal E}\) was pretrained on clean images. As \(\textcolor{#b5651d}{t}\) moves away from 1, the raw encoder tokens drift from the clean-image features, and the drop accelerates below <span class="nowrap">\(\textcolor{#b5651d}{t} = 0.7\).</span></p>
+          <div class="m-eq">\[\cos\bigl(\textcolor{#3b73b9}{\bar{\mathbf g}_t},\ \textcolor{#3b73b9}{\bar{\mathbf g}_1}\bigr),\qquad \textcolor{#3b73b9}{\bar{\mathbf g}_1} = \textcolor{#3b73b9}{\mathcal E}(x)\]</div>
+          <p class="m-note">Scroll, or pick \(\textcolor{#b5651d}{t}\) on the stage. Readouts are the measured per-image mean cosine for DINOv3-S/16 <span class="src">Fig. 4a</span></p>
+        </div>
+      </li>
+      <li class="m-step m-step--long" data-scene="5" data-step="5">
+        <div class="m-step-in">
+          <p class="m-step-num">Step 5</p>
+          <h3>A timestep-conditioned projection</h3>
+          <p>Noise-level adaptation happens outside the encoder, in <span class="nowrap">\(\textcolor{#336b00}{P_g}\),</span> a single DiT-style block whose AdaLN reads the timestep embedding <span class="nowrap">\(\textcolor{#b5651d}{e_t}\).</span></p>
+          <div class="m-eq">\[\textcolor{#336b00}{\mathbf g_t} = \textcolor{#336b00}{P_g}\bigl(\textcolor{#3b73b9}{\bar{\mathbf g}_t},\ \textcolor{#b5651d}{t}\bigr) \in \mathbb R^{L\times D}\]</div>
+          <p>Its output keeps cosine similarity above 0.77 to its own clean-input output at every <span class="nowrap">\(\textcolor{#b5651d}{t}\),</span> including pure noise. \(\textcolor{#336b00}{P_g}\) does not restore clean-image features; it emits a different, <span class="nowrap">\(\textcolor{#b5651d}{t}\)-stable</span> set of grounding tokens. <span class="src">Fig. 4a</span></p>
+        </div>
+      </li>
+      <li class="m-step" data-scene="6" data-step="6">
+        <div class="m-step-in">
+          <p class="m-step-num">Step 6</p>
+          <h3>Spatial AdaLN</h3>
+          <p>Grounding tokens \(\textcolor{#336b00}{\mathbf g_t}\) share the DiT’s \(L\)-patch grid. Inspired by DDT and PixelDiT, \(\textcolor{#336b00}{\mathbf g_t}\) is used directly as the spatial AdaLN condition: every DiT token is modulated by the grounding token at its own position, in every block.</p>
+          <div class="m-eq">\[h_i \leftarrow (1+\gamma_i)\odot \mathrm{LN}(h_i) + \beta_i,\quad (\gamma_i, \beta_i)\ \text{from}\ \textcolor{#336b00}{\mathbf g_{t,i}}\]</div>
+          <p class="m-note">Generic AdaLN form, shown as a schematic.</p>
+        </div>
+      </li>
+      <li class="m-step" data-scene="7" data-step="7">
+        <div class="m-step-in">
+          <p class="m-step-num">Step 7</p>
+          <h3>The encoder stays in the loop at sampling</h3>
+          <p>Sampling integrates the flow ODE with a 50-step Heun solver. At every step, the frozen encoder re-reads the current <span class="nowrap">\(x_t\).</span></p>
+          <div class="m-eq">\[\frac{\mathrm d x_t}{\mathrm d t} = \hat v_\theta\bigl(x_t,\ \textcolor{#b5651d}{t},\ y;\ \textcolor{#336b00}{\mathbf g_t}\bigr),\qquad \textcolor{#336b00}{\mathbf g_t} = \textcolor{#336b00}{P_g}\bigl(\textcolor{#3b73b9}{\mathcal E}(x_t),\ \textcolor{#b5651d}{t}\bigr)\]</div>
+          <p class="m-note">For classifier-free guidance, the unconditional branch uses null grounding, which bypasses \(\textcolor{#3b73b9}{\mathcal E}\) and <span class="nowrap">\(\textcolor{#336b00}{P_g}\).</span> See <a href="#recipe">Recipe</a>.</p>
+          <p class="m-note m-narrow-only">Schematic: the stage frames mix \(x\) and <span class="nowrap">\(\textcolor{#b5651d}{\varepsilon}\);</span> they are not sampler outputs.</p>
+        </div>
+      </li>
+    </ol>
+  </div>
+  <div class="wide m-sum" data-reveal>
+    <p class="m-sum-k">Representation grounding</p>
+    <div class="m-sum-row">
+      <div class="m-sum-item m-sum-item--e">
+        <span class="m-sum-glyph m-sum-glyph--e" aria-hidden="true">\(\mathcal E\)<svg class="m-sum-lock" viewBox="0 0 12 12"><path d="M3.6 5.4V4a2.4 2.4 0 0 1 4.8 0v1.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><rect x="2.4" y="5.2" width="7.2" height="5.4" rx="1.2" fill="currentColor"/></svg></span>
+        <p><b>Frozen encoder</b><span class="m-sum-d">DINOv3 reads the noisy \(x_t\) and is never updated.</span></p>
+      </div>
+      <span class="m-sum-op" aria-hidden="true">+</span>
+      <div class="m-sum-item m-sum-item--g">
+        <span class="m-sum-glyph" aria-hidden="true">\(P_g\)</span>
+        <p><b>Timestep-conditioned projection</b><span class="m-sum-d">One DiT block absorbs the drift on noisy inputs.</span></p>
+      </div>
+      <span class="m-sum-op" aria-hidden="true">+</span>
+      <div class="m-sum-item m-sum-item--a">
+        <span class="m-sum-glyph m-sum-glyph--grid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <p><b>Spatial AdaLN</b><span class="m-sum-d">Per-patch, per-block modulation of the DiT.</span></p>
+      </div>
+    </div>
+    <p class="m-sum-note">Active in training and at every sampling step. Training also keeps the standard REPA loss, whose target is a separate DINOv2-B/14 on the clean image; see <a href="#repa">REPA</a>.</p>
+  </div>
+</section>
+<section class="sec" id="position">
+  <header class="sec-head wrap">
+    <p class="kicker"><span class="kicker-num">04</span> Where representations enter</p>
+    <h2>An encoder inside the sampling loop</h2>
+    <p class="lede">Prior work uses pretrained features as training targets, as the space to be generated, or as variables generated alongside the image. PixelDiT2 runs the frozen encoder on the current noisy image at every step, in training and in sampling.</p>
+  </header>
+  <div class="wide pos-grid">
+    <div class="pos-left" data-reveal>
+      <div class="pos-tblhead">
+        <span class="pos-hint">Select a row to compare training and sampling.</span>
+        <span class="src">Tab. 1 · §2.2</span>
+      </div>
+      <div class="tbl-wrap pos-tblwrap">
+        <table class="tbl pos-tbl">
+          <caption class="sr-only">How pretrained visual representations enter diffusion (paper Tab. 1). The rows describe the formulations of the listed methods. The last column indicates whether the pretrained visual encoder itself is evaluated during sampling.</caption>
+          <thead>
+            <tr>
+              <th scope="col">Method</th>
+              <th scope="col" class="pos-c-role">Role of pretrained features</th>
+              <th scope="col" class="pos-c-diff">Diffused variables</th>
+              <th scope="col" class="c pos-c-run">Encoder run<br>during sampling?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="grp"><td colspan="4">Representations as supervision</td></tr>
+            <tr data-m="repa">
+              <th scope="row"><button type="button" class="pos-sel" aria-pressed="false" aria-controls="pos-diagram">REPA</button><span class="pos-role-m">Feature-alignment targets</span></th>
+              <td class="pos-c-role">Feature-alignment targets</td>
+              <td class="pos-c-diff">VAE latents</td>
+              <td class="c"><span class="pos-mark" data-v="0" role="img" aria-label="No">✗</span></td>
+            </tr>
+            <tr data-m="repae">
+              <th scope="row"><button type="button" class="pos-sel" aria-pressed="false" aria-controls="pos-diagram">REPA-E</button><span class="pos-role-m">Alignment for joint VAE–DiT training</span></th>
+              <td class="pos-c-role">Alignment for joint VAE–DiT training</td>
+              <td class="pos-c-diff">VAE latents</td>
+              <td class="c"><span class="pos-mark" data-v="0" role="img" aria-label="No">✗</span></td>
+            </tr>
+            <tr class="grp"><td colspan="4">Representations as a generation space</td></tr>
+            <tr data-m="rae">
+              <th scope="row"><button type="button" class="pos-sel" aria-pressed="false" aria-controls="pos-diagram">RAE</button><span class="pos-role-m">Representation space for diffusion</span></th>
+              <td class="pos-c-role">Representation space for diffusion</td>
+              <td class="pos-c-diff">Patch features</td>
+              <td class="c"><span class="pos-mark" data-v="0" role="img" aria-label="No">✗</span></td>
+            </tr>
+            <tr data-m="rpiae">
+              <th scope="row"><button type="button" class="pos-sel" aria-pressed="false" aria-controls="pos-diagram">RPiAE</button><span class="pos-role-m">Prior for a learned tokenizer</span></th>
+              <td class="pos-c-role">Prior for a learned tokenizer</td>
+              <td class="pos-c-diff">Compressed feature latents</td>
+              <td class="c"><span class="pos-mark" data-v="0" role="img" aria-label="No">✗</span></td>
+            </tr>
+            <tr class="grp"><td colspan="4">Representations as additional generation targets</td></tr>
+            <tr data-m="reg">
+              <th scope="row"><button type="button" class="pos-sel" aria-pressed="false" aria-controls="pos-diagram">REG</button><span class="pos-role-m">Jointly generated global semantics</span></th>
+              <td class="pos-c-role">Jointly generated global semantics</td>
+              <td class="pos-c-diff">VAE latents and a [CLS] token</td>
+              <td class="c"><span class="pos-mark" data-v="0" role="img" aria-label="No">✗</span></td>
+            </tr>
+            <tr data-m="lf">
+              <th scope="row"><button type="button" class="pos-sel" aria-pressed="false" aria-controls="pos-diagram">Latent Forcing</button><span class="pos-role-m">Jointly generated spatial features</span></th>
+              <td class="pos-c-role">Jointly generated spatial features</td>
+              <td class="pos-c-diff">Pixels and patch features</td>
+              <td class="c"><span class="pos-mark" data-v="0" role="img" aria-label="No">✗</span></td>
+            </tr>
+            <tr class="grp"><td colspan="4">Representations as spatial conditioning</td></tr>
+            <tr class="ours" data-m="ours">
+              <th scope="row"><button type="button" class="pos-sel" aria-pressed="false" aria-controls="pos-diagram">PixelDiT2 (ours)</button><span class="pos-role-m">Spatial conditioning from \(x_t\)</span></th>
+              <td class="pos-c-role">Spatial conditioning from \(x_t\)</td>
+              <td class="pos-c-diff">Pixels</td>
+              <td class="c"><span class="pos-mark" data-v="1" role="img" aria-label="Yes">✓</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="caveat">The rows describe the formulations of the listed methods. A cross does not imply that pretrained knowledge is absent: it may be learned by the denoiser, define its generation space, or be represented by jointly generated features.</p>
+    </div>
+    <div class="pos-right" data-reveal>
+      <div class="stage pos-stage" id="pos-diagram">
+        <div class="pos-dhead" aria-live="polite">
+          <div class="pos-dtop">
+            <span class="stage-tag">Schematic · training vs. sampling</span>
+          </div>
+          <h3 class="pos-dname">PixelDiT2</h3>
+          <p class="pos-drole">Spatial conditioning from \(x_t\)</p>
+          <p class="pos-ddesc">The features act as spatial conditioning; only the pixels have a diffusion trajectory.</p>
+        </div>
+        <div class="pos-panels">
+          <div class="pos-panel">
+            <div class="pos-ptag">Training</div>
+            <div class="pos-psvg" data-panel="train"></div>
+          </div>
+          <div class="pos-panel">
+            <div class="pos-ptag">Sampling</div>
+            <div class="pos-psvg" data-panel="sample"></div>
+          </div>
+        </div>
+        <dl class="pos-facts">
+          <div><dt>Encoder at sampling</dt><dd data-f="run">Evaluated every step</dd></div>
+          <div><dt>Diffused</dt><dd data-f="diffused">Pixels</dd></div>
+          <div><dt>Decoder</dt><dd data-f="decoder">None</dd></div>
+        </dl>
+      </div>
+    </div>
+  </div>
+  <div class="wrap pos-notes" data-reveal>
+    <p>Running the frozen encoder at every sampling step adds inference cost (<a href="#limits">Limitations</a>).</p>
+  </div>
+</section>
+<section class="sec" id="results">
+  <header class="sec-head wrap">
+    <p class="kicker"><span class="kicker-num">05</span> Results</p>
+    <h2>Faster convergence, lower final FID</h2>
+    <p class="lede">Class-conditional ImageNet at 256×256 and 512×512, scored by FID-50K. PixelDiT2 samples with a 50-step Heun ODE solver and classifier-free guidance restricted to an interval.</p>
+  </header>
+  <div class="wide">
+    <div class="res-subhead" data-reveal>
+      <h3>Convergence at 512×512</h3>
+      <p>PixelDiT2 against its predecessor PixelDiT, measured in training epochs.</p>
+    </div>
+    <figure class="fig res-hero" data-reveal>
+      <div class="stage stage-pad">
+        <div class="res-hero-grid">
+          <div class="res-conv chart chart--dark" data-res-conv>
+            <div class="chart-head">
+              <div class="res-conv-headl">
+                <span class="stage-tag">ImageNet 512×512 · FID-50K</span>
+                <div class="legend" role="list"></div>
+              </div>
+              <div class="res-conv-btns">
+                <button type="button" class="res-replay" data-replay aria-label="Replay the animation">
+                  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 8a4.8 4.8 0 1 0 1.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4.4 1.9v2.9h2.9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Replay
+                </button>
+                <button type="button" class="data-toggle" aria-pressed="false">Data</button>
+              </div>
+            </div>
+            <div class="chart-svg"></div>
+            <div class="chart-table tbl-wrap"></div>
+          </div>
+          <div class="res-read">
+            <div class="res-read-item" data-step="1">
+              <p class="res-read-k">Epoch <span data-d="cross-ep">200</span></p>
+              <p class="res-read-v"><span class="res-big" data-d="cross-fid">1.78</span><span class="res-unit">FID</span></p>
+              <p class="res-read-s">below PixelDiT's <span data-d="ref-fid">1.81</span> at <span data-d="ref-ep">850</span> epochs</p>
+            </div>
+            <div class="res-read-item" data-step="2">
+              <p class="res-read-k">Epoch budget</p>
+              <p class="res-read-v res-read-eq">\( \dfrac{\textcolor{#7c877a}{850}}{\textcolor{#76b900}{200}} = 4.25\times \)</p>
+              <p class="res-read-s">lower budget to surpass PixelDiT's 850-epoch FID</p>
+            </div>
+            <div class="res-read-item" data-step="3">
+              <p class="res-read-k">Epoch <span data-d="end-ep">680</span></p>
+              <p class="res-read-v"><span class="res-big" data-d="end-fid">1.48</span><span class="res-unit">FID</span></p>
+              <p class="res-read-s">IS <span data-d="end-is">295.7</span>, lowest FID among the pixel-space methods in Tab. 3</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption>
+        <b>ImageNet 512×512 convergence.</b> <span class="src">Fig. 1 (bottom right)</span>
+      </figcaption>
+      <p class="caveat">Epochs count passes over the data, not compute. PixelDiT2-H has 1074M parameters including its frozen DINOv3-B/16 grounding encoder; PixelDiT-XL has 797M (Tab. 3).</p>
+    </figure>
+  </div>
+  <div class="wide mt-xl" data-res-tables>
+    <div class="res-subhead res-subhead--row" data-reveal>
+      <div>
+        <h3>System-level comparison</h3>
+        <p>Class-conditional ImageNet with classifier-free guidance. The last column places every FID on one shared axis.</p>
+      </div>
+      <div class="seg" role="group" aria-label="Resolution">
+        <button type="button" aria-pressed="true" data-res="256">256×256</button>
+        <button type="button" aria-pressed="false" data-res="512">512×512</button>
+      </div>
+    </div>
+    <div class="res-tbl-card" data-reveal>
+      <div class="tbl-wrap">
+        <table class="tbl res-tbl">
+          <caption class="sr-only" data-res-cap>Class-conditional ImageNet 256×256.</caption>
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th class="r">Budget</th>
+              <th class="r">Params (M)</th>
+              <th class="r">FID↓</th>
+              <th class="r">IS↑</th>
+              <th class="res-dotcol" aria-label="FID on a shared axis, lower is better"><span class="res-axis" aria-hidden="true"></span></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="res-tbl-foot">
+        <p class="res-foot" data-for="256"><span class="res-legend-dots" aria-hidden="true"><i class="d-ours"></i>PixelDiT2 <i class="d-pix"></i>pixel <i class="d-lat"></i>latent</span> <span>* delayed grounding dropout: class dropout only until epoch 160, then independent class and grounding dropout (<a href="#recipe">§09</a>). <b>Bold</b>: best, <u>underline</u>: second best.</span> <span class="src">Tab. 2</span></p>
+        <p class="res-foot" data-for="512" hidden><span class="res-legend-dots" aria-hidden="true"><i class="d-ours"></i>PixelDiT2 <i class="d-pix"></i>pixel <i class="d-lat"></i>latent</span> <span>Parameter counts include the frozen DINOv3-B grounding encoder but exclude the training-only REPA target. <b>Bold</b>: best, <u>underline</u>: second best.</span> <span class="src">Tab. 3</span></p>
+      </div>
+    </div>
+    <div class="res-notes">
+      <div class="res-note" data-for="256">
+        <p>Trained with independent class and grounding dropout from initialization, PixelDiT2-H reaches <b>FID 1.46</b> (IS 301.6) at 600 epochs. With delayed grounding dropout it reaches 1.48 at 480 epochs, improving on PixelDiT-XL (1.61 at 320 epochs) and JiT-G/16 (1.82 at 600 epochs, about 2B parameters).</p>
+        <p class="res-honest">Lower FIDs remain: SiD2 reports 1.38 (listed budget 1280), and the latent baselines in Tab. 2 reach 1.13 (RAE-XL) and 1.29 (REPA-XL). Those latent models use a separately trained tokenizer; PixelDiT2 does not.</p>
+      </div>
+      <div class="res-note" data-for="512" hidden>
+        <p>PixelDiT2-H reaches <b>FID 1.48</b> (IS 295.7) at 680 epochs, the lowest FID among the pixel-space methods in the table.</p>
+        <p class="res-honest">The latent RAE-XL remains lower at 1.13.</p>
+      </div>
+    </div>
+    <p class="takeaway" data-reveal><span class="tk">Takeaway</span>PixelDiT2 surpasses PixelDiT's 850-epoch FID at 512×512 by epoch 200. Its final FID is also lower at both resolutions: 1.46 (600 epochs) vs. 1.54 (800 epochs) at 256×256, and 1.48 (680) vs. 1.81 (850) at 512×512. The best latent-diffusion baselines remain lower. <span class="src">Fig. 1, Tab. 2, 3, 14</span></p>
+  </div>
+  <div class="wide mt-xl">
+    <div class="res-subhead" data-reveal>
+      <h3>Scale and training length</h3>
+      <p>All PixelDiT2 rows of the full 256×256 comparison.</p>
+    </div>
+    <div class="grid-2 res-scale" data-reveal-stagger="120">
+      <figure class="fig" data-reveal>
+        <div class="res-chart" data-res-scale></div>
+        <figcaption><b>Model scale at 200 epochs.</b> FID falls from 5.29 (B/16, 165M) to 2.35 (L/16, 503M) and 1.82 (H/16, 1008M), at 91, 281, and 568 GFLOPs. <span class="src">Tab. 14</span></figcaption>
+      </figure>
+      <figure class="fig" data-reveal>
+        <div class="res-chart" data-res-traj></div>
+        <figcaption><b>PixelDiT2-H/16 over training.</b> Standard recipe: 1.82 → 1.59 → 1.52 → 1.46. Delayed grounding dropout trains without grounding dropout until epoch 160, then enables it: 1.66 → 1.50 → 1.48. Gray markers are reference pixel models. <span class="src">Tab. 14</span></figcaption>
+      </figure>
+    </div>
+  </div>
+  <div class="wide mt-xl">
+    <div class="res-lf" data-reveal>
+      <div class="res-lf-text">
+        <h3>Matched nominal budget against Latent Forcing</h3>
+        <p>Latent Forcing jointly generates pixels and spatial representation features. PixelDiT2 instead encodes the current noisy image at each step.</p>
+        <ul class="res-chips" aria-label="Shared protocol">
+          <li class="chip">H/16, from scratch</li>
+          <li class="chip">200 epochs</li>
+          <li class="chip">batch 1024</li>
+          <li class="chip">50K ImageNet-256 samples</li>
+          <li class="chip">Heun-50</li>
+          <li class="chip">own guidance sweep each</li>
+        </ul>
+        <p>PixelDiT2 reaches <b>FID 1.822</b> versus 2.287, with 1007.8M versus 1080.7M parameters. Latent Forcing has the higher IS: 295.7 versus 275.4. <span class="src">Tab. 12, App. B.2</span></p>
+      </div>
+      <div class="res-lf-viz card" data-res-lf role="img" aria-label="Latent Forcing comparison on ImageNet 256×256 at 200 epochs: FID 1.822 for PixelDiT2 versus 2.287 for Latent Forcing; IS 275.4 versus 295.7."></div>
+    </div>
+  </div>
+</section>
+<section class="sec" id="repa">
+  <header class="sec-head wrap">
+    <p class="kicker"><span class="kicker-num">06</span> Relation to REPA</p>
+    <h2>Grounding complements REPA after early training</h2>
+    <p class="lede">REPA uses a pretrained encoder as a training target. Representation grounding uses one as an input at every denoising step. PixelDiT2 keeps both, and in a matched-encoder study the combination gives the lowest FID from epoch 320 onward.</p>
+  </header>
+  <div class="wide">
+    <figure class="fig rp-fig" data-reveal>
+      <div class="stage rp-stage">
+        <div class="stage-toolbar rp-bar">
+          <span class="stage-tag">Schematic · two roles for a pretrained encoder</span>
+          <div class="rp-ctrl">
+            <div class="seg" role="group" aria-label="Show the training or the sampling phase">
+              <button type="button" data-phase="train" aria-pressed="true">Training</button>
+              <button type="button" data-phase="sample" aria-pressed="false">Sampling</button>
+            </div>
+            <button type="button" class="rp-replay" aria-label="Replay the animation">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.2 8a5.2 5.2 0 1 1-1.6-3.75" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M12.6 1.8v3.1H9.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Replay
+            </button>
+          </div>
+        </div>
+        <div class="rp-panels">
+          <div class="rp-panel" data-kind="repa">
+            <div class="rp-head">
+              <h3>REPA</h3>
+              <span class="rp-pill">training only</span>
+            </div>
+            <div class="rp-dia" data-diagram="repa" role="img" aria-label="REPA: a frozen encoder reads the clean image x. Its patch features are an alignment target for projected intermediate features of the DiT, which denoises x_t into a clean-image estimate."></div>
+            <dl class="rp-def">
+              <div><dt>Encoder reads</dt><dd>the clean image \(x\)</dd></div>
+              <div><dt>Its features are</dt><dd>an alignment <b>target</b> for projected DiT features</dd></div>
+              <div><dt>At sampling</dt><dd>the encoder is not evaluated</dd></div>
+            </dl>
+          </div>
+          <div class="rp-panel" data-kind="ground">
+            <div class="rp-head">
+              <h3>Representation grounding</h3>
+              <span class="rp-pill rp-pill--g">training and sampling</span>
+            </div>
+            <div class="rp-dia" data-diagram="ground" role="img" aria-label="Representation grounding: the frozen encoder E reads the noisy x_t. Its raw tokens pass through the timestep-conditioned projection P_g; the grounding tokens g_t modulate every DiT block through spatial AdaLN."></div>
+            <dl class="rp-def">
+              <div><dt>Encoder reads</dt><dd>the noisy sample \(x_t\)</dd></div>
+              <div><dt>Its features are</dt><dd>a conditioning <b>input</b>, through \(P_g\) and spatial AdaLN</dd></div>
+              <div><dt>At sampling</dt><dd>the encoder runs at every step</dd></div>
+            </dl>
+          </div>
+        </div>
+        <p class="rp-phase-note stage-cap" aria-live="off" data-phase-note></p>
+      </div>
+      <figcaption>
+        <b>PixelDiT2 keeps both paths.</b> By default, the REPA target is a frozen DINOv2-B/14 on the clean image (loss weight 0.5, training only). The grounding encoder is a frozen DINOv3-S/16 at 256 px and DINOv3-B/16 at 512 px. <span class="src">Tab. 1, Tab. 10</span>
+      </figcaption>
+    </figure>
+  </div>
+  <div class="wide rp-study">
+    <div class="rp-subhead" data-reveal>
+      <h3>A matched-encoder 2&thinsp;×&thinsp;2</h3>
+      <p>Each path is switched on or off. Both active paths use DINOv3-S/16, removing encoder choice as a confound. <span class="src">Tab. 4</span></p>
+    </div>
+    <div class="rp-grid" data-reveal>
+      <div class="rp-left">
+        <div class="rp-matrix" role="group" aria-label="Two-by-two design: REPA on or off, grounding on or off. Hover or focus a cell to highlight its curve.">
+          <span class="rp-corner" aria-hidden="true"></span>
+          <span class="rp-colh">Grounding <b>off</b></span>
+          <span class="rp-colh">Grounding <b>on</b></span>
+          <span class="rp-rowh">REPA <b>off</b></span>
+          <button type="button" class="rp-cell" data-key="bare" aria-pressed="false"></button>
+          <button type="button" class="rp-cell" data-key="ground" aria-pressed="false"></button>
+          <span class="rp-rowh">REPA <b>on</b></span>
+          <button type="button" class="rp-cell" data-key="repa" aria-pressed="false"></button>
+          <button type="button" class="rp-cell" data-key="both" aria-pressed="false"></button>
+        </div>
+        <div class="rp-epoch">
+          <span class="rp-epoch-k">Epoch</span>
+          <div class="seg" role="group" aria-label="Select the training epoch" data-epochs></div>
+        </div>
+        <p class="rp-lowest" aria-live="off" data-lowest></p>
+      </div>
+      <div class="rp-right">
+        <div class="rp-chart" data-chart></div>
+      </div>
+    </div>
+    <div class="rp-read grid-2" data-reveal-stagger="90">
+      <p data-reveal><b>Early.</b> At epoch 200, REPA alone and the combination are nearly identical, at FID 1.89 and 1.90. Grounding alone reaches 2.28, against 2.53 for the bare backbone.</p>
+      <p data-reveal><b>Later.</b> From epoch 320 onward, combining both gives the lowest FID at every evaluated epoch, improving from 1.70 to 1.59 by epoch 480. Over the same interval, REPA alone plateaus near 1.7, whereas grounding alone keeps improving from 2.08 to 1.83.</p>
+    </div>
+    <p class="takeaway" data-reveal><span class="tk">Takeaway</span>On the same backbone, grounding alone lowers FID at every evaluated epoch (2.53&nbsp;→&nbsp;2.28 at epoch 200, 2.19&nbsp;→&nbsp;1.83 at epoch 480). The two paths have different optimization profiles, and their complementarity emerges after the early training regime rather than appearing immediately. <span class="src">Tab. 4</span></p>
+  </div>
+</section>
+<section class="sec" id="ablations">
+  <header class="sec-head wrap">
+    <p class="kicker"><span class="kicker-num">07</span> What matters</p>
+    <h2>Design choices, one at a time</h2>
+    <p class="lede">Unless noted: PixelDiT2-H/16, ImageNet 256×256, 600 epochs, with separate sweeps over CFG scale and guidance interval.</p>
+    <p class="ab-guide">FID-50K, lower is better. In each chart the hairline marks the default setting. Hover or tap a row to show that variant in the schematic.</p>
+  </header>
+  <nav class="wide ab-strip" aria-label="Ablation summary" data-reveal-stagger="70">
+    <a class="ab-chip" href="#ab-inject" data-reveal>
+      <span class="ab-chip-k">A</span>
+      <span class="ab-chip-q">Where should grounding tokens enter?</span>
+      <span class="ab-chip-a">Spatial AdaLN</span>
+      <span class="ab-chip-m">1.462 vs 1.521–1.621</span>
+    </a>
+    <a class="ab-chip" href="#ab-adapt" data-reveal>
+      <span class="ab-chip-k">B</span>
+      <span class="ab-chip-q">Should the encoder adapt to noisy inputs?</span>
+      <span class="ab-chip-a">Keep it frozen</span>
+      <span class="ab-chip-m">1.462 vs 1.581–1.625</span>
+    </a>
+    <a class="ab-chip" href="#ab-proj" data-reveal>
+      <span class="ab-chip-k">C</span>
+      <span class="ab-chip-q">What should \(\Pg\) be?</span>
+      <span class="ab-chip-a">A timestep-conditioned block</span>
+      <span class="ab-chip-m">5.29 vs 6.79 · B/16, epoch 200</span>
+    </a>
+    <a class="ab-chip" href="#ab-encoder" data-reveal>
+      <span class="ab-chip-k">D</span>
+      <span class="ab-chip-q">Which frozen encoder?</span>
+      <span class="ab-chip-a">DINOv3-S/16 at 256px</span>
+      <span class="ab-chip-m">1.462 vs 1.547–1.624</span>
+    </a>
+    <a class="ab-chip" href="#ab-patch" data-reveal>
+      <span class="ab-chip-k">E</span>
+      <span class="ab-chip-q">Fewer tokens at 512px?</span>
+      <span class="ab-chip-a">Scale helps, H/16 stays ahead</span>
+      <span class="ab-chip-m"><span class="nw">1.625 vs 1.543</span> · <span class="nw">epoch 400</span></span>
+    </a>
+  </nav>
+  <div class="wide ab-cards">
+    <article class="ab-card" id="ab-inject" aria-labelledby="ab-inject-h">
+      <header class="ab-head" data-reveal>
+        <span class="ab-letter" aria-hidden="true">A</span>
+        <h3 id="ab-inject-h">Where should grounding tokens enter?</h3>
+        <span class="src">Tab. 5</span>
+      </header>
+      <div class="ab-grid">
+        <figure class="ab-fig stage" data-reveal="scale">
+          <div class="ab-fig-top">
+            <span class="stage-tag">Schematic</span>
+            <div class="ab-ctrl"></div>
+          </div>
+          <div class="ab-svg" data-schem="inject" role="img" aria-label="Schematic of four ways to inject grounding tokens into the DiT: spatial AdaLN in every block, addition to the input patch tokens, and token concatenation at block 0 or block 8."></div>
+          <figcaption class="ab-cap">
+            <span class="ab-cap-row"><span class="ab-cap-name">Spatial AdaLN</span><span class="ab-cap-fid">FID <b>1.462</b></span></span>
+            <span class="ab-cap-desc">\(\g\) modulates every DiT block element-wise, patch by patch, on the shared 16×16 grid.</span>
+          </figcaption>
+        </figure>
+        <div class="ab-res" data-reveal>
+          <p class="ab-setup">Four ways to feed the same grounding tokens \(\g\) into the pixel DiT.</p>
+          <div class="ab-chart" data-chart="inject"></div>
+          <p class="takeaway"><span class="tk">Takeaway</span>Spatial AdaLN gives the lowest FID of the four tested mechanisms.</p>
+          <p class="caveat">The experiment does not by itself isolate which property of AdaLN causes the advantage.</p>
+        </div>
+      </div>
+      <div class="ab-sub" data-reveal>
+        <div class="ab-sub-fig" data-schem="global" role="img" aria-label="Illustration: a 16 by 16 grid of per-patch tokens collapses into one global token."></div>
+        <div class="ab-sub-text">
+          <h4>One global token instead of a per-patch grid <span class="src">Tab. 11 · App. B.1</span></h4>
+          <p>PixelDiT2-B/16, epoch 200, DINOv3-S/16. A REG-inspired baseline puts the encoder's [CLS] token in the in-context conditioning slot instead of modulating each patch. FID rises from 5.29 to 6.04.</p>
+          <p class="ab-sub-note">Collapsing the grounding signal into one token erases the 16×16 spatial alignment that AdaLN exploits.</p>
+        </div>
+        <div class="ab-sub-chart" data-chart="global"></div>
+      </div>
+    </article>
+    <article class="ab-card is-flip" id="ab-adapt" aria-labelledby="ab-adapt-h">
+      <header class="ab-head" data-reveal>
+        <span class="ab-letter" aria-hidden="true">B</span>
+        <h3 id="ab-adapt-h">Should the encoder adapt to noisy inputs?</h3>
+        <span class="src">Tab. 7</span>
+      </header>
+      <div class="ab-grid">
+        <figure class="ab-fig stage" data-reveal="scale">
+          <div class="ab-fig-top">
+            <span class="stage-tag">Schematic</span>
+            <div class="ab-ctrl"></div>
+          </div>
+          <div class="ab-svg" data-schem="adapt" role="img" aria-label="Schematic of the grounding path: noisy image, frozen encoder, timestep-conditioned projection, DiT. Adapted variants add a timestep adapter or unfreeze the first encoder block."></div>
+          <div class="ab-legend" aria-hidden="true">
+            <span><i class="lg-ants"></i>updated during diffusion training</span>
+            <span><i class="lg-lock"></i>frozen</span>
+            <span><i class="lg-pill">stage 1</i>from a stage-1 checkpoint</span>
+          </div>
+          <figcaption class="ab-cap">
+            <span class="ab-cap-row"><span class="ab-cap-name">Frozen (default)</span><span class="ab-cap-fid">FID <b>1.462</b></span></span>
+            <span class="ab-cap-desc">Off-the-shelf \(\E\). Noise-level adaptation is confined to the timestep-conditioned \(\Pg\).</span>
+          </figcaption>
+        </figure>
+        <div class="ab-res" data-reveal>
+          <p class="ab-setup">\(\E\) was pretrained on clean images but reads noisy \(x_t\). Should the encoder side absorb this shift?</p>
+          <dl class="ab-defs">
+            <div><dt>Joint</dt><dd>the adapted part is optimized together with the diffusion model.</dd></div>
+            <div><dt>Two-stage</dt><dd>the adapted part comes from a stage-1 conditioner checkpoint and stays frozen while \(\Pg\) trains.</dd></div>
+            <div><dt>Timestep adapter</dt><dd>a timestep-conditioned encoder-side module.</dd></div>
+            <div><dt>First DINO block</dt><dd>the encoder's first transformer block.</dd></div>
+          </dl>
+          <div class="ab-chart" data-chart="adapt"></div>
+          <p class="takeaway"><span class="tk">Takeaway</span>All four adapted variants are worse. In the evaluated setting, these results favor preserving the pretrained encoder and adapting its output downstream.</p>
+          <p class="caveat">This does not establish that \(\Pg\) alone determines performance.</p>
+        </div>
+      </div>
+    </article>
+    <article class="ab-card" id="ab-proj" aria-labelledby="ab-proj-h">
+      <header class="ab-head" data-reveal>
+        <span class="ab-letter" aria-hidden="true">C</span>
+        <h3 id="ab-proj-h">What should \(\Pg\) be?</h3>
+        <span class="src">Tab. 8</span>
+      </header>
+      <div class="ab-grid">
+        <figure class="ab-fig stage" data-reveal="scale">
+          <div class="ab-fig-top">
+            <span class="stage-tag">Schematic · 143M trainable in both</span>
+            <div class="ab-ctrl"></div>
+          </div>
+          <div class="ab-svg" data-schem="proj" role="img" aria-label="Schematic: one transformer block moves from the projection into the DiT, leaving a linear projection. Both models have 143M trainable parameters."></div>
+          <figcaption class="ab-cap">
+            <span class="ab-cap-row"><span class="ab-cap-name">DiT block + AdaLN(\(e_t\))</span><span class="ab-cap-fid">FID <b>5.29</b></span></span>
+            <span class="ab-cap-desc">\(\Pg\) is one DiT-style block modulated by the timestep embedding \(e_t\). The DiT has 12 layers.</span>
+          </figcaption>
+        </figure>
+        <div class="ab-res" data-reveal>
+          <p class="ab-setup">PixelDiT2-B/16 at epoch 200. Replace the DiT-style \(\Pg\) with a linear projection and add one block to the DiT, so both models keep 143M trainable parameters.</p>
+          <div class="ab-chart" data-chart="proj"></div>
+          <p class="takeaway"><span class="tk">Takeaway</span>At matched parameters, the timestep-conditioned DiT-style \(\Pg\) reaches FID 5.29, versus 6.79 for the linear projection. Its benefit is not interchangeable with placing the same capacity in the DiT.</p>
+        </div>
+      </div>
+    </article>
+    <article class="ab-card is-flip" id="ab-encoder" aria-labelledby="ab-encoder-h">
+      <header class="ab-head" data-reveal>
+        <span class="ab-letter" aria-hidden="true">D</span>
+        <h3 id="ab-encoder-h">Which frozen encoder?</h3>
+        <span class="src">Tab. 6 · Tab. 9 · Tab. 15</span>
+      </header>
+      <div class="ab-grid">
+        <figure class="ab-fig stage" data-reveal="scale">
+          <div class="ab-fig-top">
+            <span class="stage-tag">Schematic</span>
+            <div class="ab-ctrl"></div>
+          </div>
+          <div class="ab-svg" data-schem="encoder" role="img" aria-label="Schematic: the frozen encoder slot is swapped between DINOv3-S, B and L, DINOv2-S and B, and MAE-B. Larger encoders feed wider features into the same single-block projection."></div>
+          <figcaption class="ab-cap">
+            <span class="ab-cap-row"><span class="ab-cap-name">DINOv3-S/16</span><span class="ab-cap-fid">FID <b>1.462</b></span></span>
+            <span class="ab-cap-desc">Default grounding encoder at 256px.</span>
+          </figcaption>
+        </figure>
+        <div class="ab-res" data-reveal>
+          <p class="ab-setup">Swap the frozen encoder \(\E\) on the grounding path, under the shared protocol.</p>
+          <div class="ab-chart" data-chart="encoder"></div>
+          <p class="takeaway"><span class="tk">Takeaway</span>DINOv3-S/16 gives the lowest FID of the six. Larger DINOv3 encoders are worse at 256px under the shared evaluation at epoch 600.</p>
+        </div>
+      </div>
+      <div class="ab-follow">
+        <div class="ab-panel" data-reveal>
+          <h4>Is \(\Pg\) the bottleneck for DINOv3-L? <span class="src">Tab. 9</span></h4>
+          <p>A single-block \(\Pg\) may bottleneck higher-dimensional DINOv3-L features. Fix the grounding encoder to DINOv3-L/16 and widen or deepen \(\Pg\).</p>
+          <figure class="ab-mini stage">
+            <div class="ab-fig-top"><span class="stage-tag">Schematic</span><div class="ab-ctrl"></div></div>
+            <div class="ab-svg" data-schem="capacity" role="img" aria-label="Schematic of the projection capacity variants: one block, twice the width, four blocks, and the DINOv3-S/16 reference."></div>
+          </figure>
+          <div class="ab-chart" data-chart="capacity"></div>
+          <p class="ab-panel-note">Doubling the width lowers FID at both epochs (1.82 → 1.78, 1.73 → 1.64); four blocks help only at epoch 320 (1.69). Neither reaches the DINOv3-S/16 reference of 1.59 at epoch 320.</p>
+        </div>
+        <div class="ab-panel" data-reveal>
+          <h4>At 512px, the ordering changes with training <span class="src">Tab. 15 · App. C</span></h4>
+          <p>PixelDiT2-H/16 at 512px. Grounding encoder DINOv3-B/16 or DINOv3-L/16; REPA target fixed to DINOv2-B/14.</p>
+          <div class="ab-chart" data-chart="scale512"></div>
+          <p class="ab-panel-note">DINOv3-L is lower at epochs 200, 320 and 400. At epoch 600, DINOv3-B is lower: 1.52 vs 1.54.</p>
+        </div>
+      </div>
+      <p class="takeaway ab-wide-take" data-reveal><span class="tk">Takeaway</span>Limited \(\Pg\) capacity may contribute to the negative S-to-L scaling at 256px, but does not fully explain it. In the evaluated 512px setting, the larger encoder speeds up early convergence without improving the later epoch. The results do not support a resolution-independent rule that smaller grounding encoders are always preferable.</p>
+    </article>
+    <article class="ab-card" id="ab-patch" aria-labelledby="ab-patch-h">
+      <header class="ab-head" data-reveal>
+        <span class="ab-letter" aria-hidden="true">E</span>
+        <h3 id="ab-patch-h">Fewer tokens at 512px?</h3>
+        <span class="src">Tab. 16 · App. C</span>
+      </header>
+      <div class="ab-grid">
+        <figure class="ab-fig stage" data-reveal="scale">
+          <div class="ab-fig-top">
+            <span class="stage-tag">Illustration · DiT patch grid</span>
+            <div class="ab-ctrl"></div>
+          </div>
+          <div class="ab-svg" data-schem="patch" role="img" aria-label="A 512 by 512 PixelDiT2 sample overlaid with a 32 by 32 patch grid for patch size 16, or a 16 by 16 grid for patch size 32."></div>
+          <figcaption class="ab-cap">
+            <span class="ab-cap-row"><span class="ab-cap-name">Patch 16</span><span class="ab-cap-fid">FID <b>1.543</b> <span class="ab-cap-ep">ep. 400</span></span></span>
+            <span class="ab-cap-desc">32×32 = 1024 tokens. PixelDiT2-H/16, the 512px default.</span>
+          </figcaption>
+        </figure>
+        <div class="ab-res" data-reveal>
+          <p class="ab-setup">Patch size 32 cuts the 512px token grid from 32×32 to 16×16. Can a larger DiT compensate?</p>
+          <div class="ab-chart" data-chart="patch"></div>
+          <p class="takeaway"><span class="tk">Takeaway</span>Scaling H/32 to G/32 improves FID at every evaluated epoch, but G/32 stays behind H/16 at epoch 400: 1.625 vs 1.543. Replacing DINOv2-B with DINOv3-B as the H/32 grounding encoder gives a smaller, consistent gain.</p>
+          <p class="ab-note"><b>Epoch budget.</b> At matched H/32 scale, PixelDiT2 reaches 2.093 at epoch 200, below the authors' reproduction of JiT-H/32 at epoch 320 (2.321). The epoch budgets differ by 1.6×; this is not a wall-clock or iso-FLOP speedup.</p>
+        </div>
+      </div>
+    </article>
+  </div>
+</section>
+<section class="sec" id="inside">
+  <header class="sec-head wrap">
+    <p class="kicker"><span class="kicker-num">08</span> Inside the model</p>
+    <h2>What \(P_g\) learns, and what the DiT inherits</h2>
+    <p class="lede">Two diagnostics: what \(P_g\) does across noise levels, and how grounding changes the DiT's own features.</p>
+  </header>
+  <div class="wide in-a">
+    <div class="in-subhead" data-reveal>
+      <p class="in-tag"><span>a</span> Feature stability <span class="src">Fig. 4a</span></p>
+      <h3>\(P_g\) turns drifting features into stable grounding tokens</h3>
+      <div class="in-cols">
+        <p>The drift is not specific to DINOv3. Per-image mean cosine similarity between \(\E(x_t)\) and \(\E(x_1)\) also collapses for DINOv2-B/14 and MAE-B/16 once the input becomes noisy, with the drop accelerating below \(t = 0.7\).</p>
+        <p>After the trained \(P_g(\cdot, t)\), the analogous similarity stays above 0.77 at every \(t\), including pure noise. \(P_g\) does not restore clean-image features; it emits a different, \(t\)-stable set of grounding tokens.</p>
+      </div>
+    </div>
+    <figure class="fig" data-reveal>
+      <div class="stage in-stage">
+        <div class="stage-toolbar in-bar">
+          <span class="stage-tag">Cosine to the clean-input feature</span>
+          <div class="in-bar-r">
+            <span class="t-readout in-t" aria-live="polite" data-t-readout>t = 0.3</span>
+            <button type="button" class="in-sweep" data-sweep aria-label="Sweep t from clean to noise">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.5v9l7-4.5z" fill="currentColor"/></svg>
+              Sweep t
+            </button>
+          </div>
+        </div>
+        <div class="in-a-grid">
+          <div class="in-a-left">
+            <div class="in-fs-chart" data-fs-chart></div>
+            <div class="in-scrub" data-scrub>
+              <input class="range in-range" type="range" min="0" max="1" step="0.1" value="0.7" aria-label="Diffusion time t, snapping to the seven measured values" data-range>
+              <div class="in-scrub-ends" aria-hidden="true"><span>clean</span><span>noise</span></div>
+            </div>
+            <div class="in-legend" role="list" data-fs-legend></div>
+          </div>
+          <div class="in-a-right" role="group" aria-label="Schematic token grids at the selected t">
+            <div class="in-xt-row">
+              <div class="in-xt" data-xt>
+                <canvas class="in-xt-noise" width="160" height="160" aria-hidden="true"></canvas>
+                <img class="in-xt-img" src="assets/img/s512/thumb/fox_squirrel.webp" alt="A PixelDiT2 sample blended with Gaussian noise at the selected t" width="160" height="160" decoding="async">
+              </div>
+              <div class="in-xt-cap">
+                <p class="in-k">Input</p>
+                <p class="in-eq">\(x_t = t\,x + (1-t)\,\varepsilon\)</p>
+                <p class="in-note">forward process on a PixelDiT2 sample</p>
+              </div>
+            </div>
+            <div class="in-flow" aria-hidden="true">
+              <span class="in-enc">\(\E\)<svg class="in-lock" viewBox="-5.5 -7 11 13.5"><rect x="-4.5" y="-1.5" width="9" height="7" rx="1.4"/><path d="M-2.6,-1.5V-3.7a2.6,2.6 0 0 1 5.2,0V-1.5"/></svg><em class="in-enc-lab">frozen</em></span>
+            </div>
+            <div class="in-grids">
+              <div class="in-gcol">
+                <p class="in-glab">raw \(\E(x_t)\)</p>
+                <canvas class="in-grid" data-grid="raw" role="img" aria-label="Schematic raw encoder tokens"></canvas>
+                <p class="in-gcos"><span class="in-gcos-k">cos</span> <span class="in-gcos-v" data-cos="raw">0.44</span></p>
+              </div>
+              <div class="in-arrow" aria-hidden="true">
+                <span class="in-arrow-lab">\(P_g(\cdot, t)\)</span>
+                <svg viewBox="0 0 64 14"><path d="M2 7H58" /><path d="M52 2L60 7L52 12" /></svg>
+              </div>
+              <div class="in-gcol">
+                <p class="in-glab in-glab--g">\(P_g(\E(x_t), t)\)</p>
+                <canvas class="in-grid" data-grid="pg" role="img" aria-label="Schematic grounding tokens"></canvas>
+                <p class="in-gcos"><span class="in-gcos-k">cos</span> <span class="in-gcos-v in-gcos-v--g" data-cos="pg">0.81</span></p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="stage-cap in-cap"><b>Reading the grids.</b> Schematic, DINOv3-S/16. Each arrow is one token; its faint line is the token's direction at \(t = 1\). The spread is set so that the mean cosine across the grid equals the measured value at the selected \(t\). Drag the slider or click the chart; it snaps to the seven measured \(t\).</p>
+      </div>
+    </figure>
+  </div>
+  <div class="wide in-b">
+    <div class="in-b-grid">
+      <div class="in-b-text" data-reveal>
+        <p class="in-tag"><span>b</span> Linear probing <span class="src">Fig. 4b</span></p>
+        <h3>Grounding makes the DiT's own features more linearly separable</h3>
+        <p>Following REPA, linear probes read the per-block hidden states of PixelDiT2-B/16 at epoch 200, which uses frozen DINOv3-S/16, \(P_g\), and REPA. The baseline is an iso-architecture REPA-only model, JiT-B/16 + REPA, without grounding tokens.</p>
+        <p>Inputs are clean. Every probe uses the null class token, so it cannot read the label off the in-context conditioning slot.</p>
+        <p class="takeaway"><span class="tk">Takeaway</span>With grounding, probe accuracy exceeds the REPA-only baseline at every block: +38.5 points at block 0 (Fig. 4b) and a stable margin of about +8 to +10 points in the deeper half.</p>
+        <p class="caveat">Both curves peak at the in-context-injection block, \(i = 4\). Past it, absolute accuracy drops in both because the null-class probe moves deeper layers off-distribution; the relative gap is the meaningful comparison.</p>
+      </div>
+      <figure class="fig in-b-fig" data-reveal>
+        <div class="card in-b-card">
+          <div class="in-probe" data-probe-chart></div>
+        </div>
+        <figcaption>Linear-probe accuracy per DiT block, PixelDiT2-B/16 at epoch 200, clean inputs, null class token. Values read from Fig. 4b. <span class="src">Fig. 4b</span></figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+<section class="sec" id="recipe" aria-labelledby="recipe-title">
+  <header class="sec-head wrap">
+    <p class="kicker"><span class="kicker-num">09</span> Training and sampling recipe</p>
+    <h2 id="recipe-title">Drop the grounding, too</h2>
+    <p class="lede">Classifier-free guidance (CFG) needs an unconditional branch. Under representation grounding, replacing the class label with a null token is not enough to build one.</p>
+  </header>
+  <div class="wrap rc-text" data-reveal>
+    <h3>A null class is not a null condition</h3>
+    <p>During training, the class token is replaced by a null token \(\varnothing\) with probability 0.1, as in standard CFG. The grounding tokens \(\g\), however, are computed from \(x_t\) and remain class-discriminative. A branch that drops only the class token can therefore still receive class information. <span class="src">§3.2</span></p>
+  </div>
+  <figure class="wide stage stage-pad rc-leak" data-mode="cond">
+    <div class="stage-toolbar rc-leak-bar">
+      <span class="stage-tag">Schematic · one network evaluation · DiT timestep input not drawn</span>
+      <button type="button" class="rc-replay" aria-label="Replay the animation">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M12.6 1.6v3.1H9.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Replay
+      </button>
+    </div>
+    <div class="rc-diagram" role="img" aria-label="Schematic. The noisy input x_t enters the pixel DiT as patch tokens. In parallel, the frozen encoder E reads x_t, and the timestep-conditioned projection P_g turns its raw tokens into grounding tokens g_t, which modulate every DiT block through spatial AdaLN. The class token enters as a separate token. Dropping only the class token leaves g_t connected, so class information can still reach the DiT. Null grounding bypasses E and P_g and uses a broadcast of the timestep and null-class embeddings instead."></div>
+    <div class="rc-steps" role="group" aria-label="Choose which branch to show">
+      <button type="button" class="rc-step" data-mode="cond" aria-pressed="true">
+        <span class="rc-step-n">1</span>
+        <span class="rc-step-t">Conditional branch</span>
+        <span class="rc-step-d">The DiT receives the class token \(y\) and grounding tokens \(\g\) computed from \(x_t\).</span>
+        <span class="rc-step-bar" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="rc-step" data-mode="leak" aria-pressed="false">
+        <span class="rc-step-n">2</span>
+        <span class="rc-step-t">Drop the class only</span>
+        <span class="rc-step-d">\(y\) becomes \(\varnothing\), but \(\g\) still carries class information. The nominally unconditional branch is not fully unconditional.</span>
+        <span class="rc-step-bar" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="rc-step" data-mode="null" aria-pressed="false">
+        <span class="rc-step-n">3</span>
+        <span class="rc-step-t">Drop class and grounding</span>
+        <span class="rc-step-d">Null grounding bypasses \(\E\) and \(\Pg\) and falls back to a broadcast of the timestep and null-class embeddings.</span>
+        <span class="rc-step-bar" aria-hidden="true"></span>
+      </button>
+    </div>
+  </figure>
+  <div class="wide rc-ti">
+    <div class="rc-ti-text" data-reveal>
+      <h4 class="rc-h4">Training</h4>
+      <p>Each sample draws two independent Bernoulli masks with \(p = 0.1\): one for the class token, one for the grounding tokens. A dropped grounding uses the null grounding tokens instead of \(\Pg(\E(x_t), t)\). <span class="src">§3.2, §4</span></p>
+      <h4 class="rc-h4">Inference</h4>
+      <p>The unconditional CFG branch uses the null class token and the same null grounding tokens, matching the training distribution. The two branches combine in the standard CFG form, with guidance applied only inside an interval of \(t\):</p>
+      <div class="rc-eq">\[\hat v = \hat v_{\varnothing} + w\,\bigl(\hat v_{y} - \hat v_{\varnothing}\bigr)\]</div>
+    </div>
+    <figure class="rc-masks card" data-reveal>
+      <div class="rc-masks-head">
+        <span class="rc-masks-title">Two independent masks per sample</span>
+        <span class="src">schematic</span>
+      </div>
+      <div class="rc-masks-svg"></div>
+      <div class="rc-masks-legend" aria-hidden="true">
+        <span class="rc-ml"><i class="rc-sw rc-sw-c"></i>class kept</span>
+        <span class="rc-ml"><i class="rc-sw rc-sw-c is-drop"></i>class dropped</span>
+        <span class="rc-ml"><i class="rc-sw rc-sw-g"></i>grounding kept</span>
+        <span class="rc-ml"><i class="rc-sw rc-sw-g is-drop"></i>grounding dropped</span>
+      </div>
+      <figcaption class="figcap">A random draw for 50 samples, each mask dropped with probability 0.1. Class only, grounding only, and both can be dropped.</figcaption>
+    </figure>
+  </div>
+  <div class="wrap rc-text mt-xl" data-reveal>
+    <h3>Grounding dropout and late-stage FID</h3>
+    <p>The null-grounding branch also changes optimization. Three H/16 runs on ImageNet-256 use different grounding-dropout schedules; class dropout is active in all three. <span class="src">§4.2, Fig. 3</span></p>
+  </div>
+  <figure class="wide rc-sched-fig" data-reveal>
+    <div class="rc-sched" role="img" aria-label="Training schedules. Grounding retained: class dropout only, epochs 0 to 600. Delayed: resumes from the retained run at epoch 160, then independent class and grounding dropout until epoch 480. From initialization: independent class and grounding dropout from epoch 0 to 600."></div>
+    <figcaption class="rc-sched-key">
+      <span><i class="rc-key rc-key-dash"></i>grounding retained</span>
+      <span><i class="rc-key rc-key-solid"></i>class and grounding dropout</span>
+      <span><i class="rc-tri" aria-hidden="true"></i>grounding dropout enabled at epoch 160</span>
+    </figcaption>
+  </figure>
+  <div class="wide grid-2 rc-charts">
+    <figure class="fig" data-reveal>
+      <div class="rc-chart-left"></div>
+      <figcaption>With independent class and grounding dropout from initialization, FID decreases monotonically from 1.59 (epoch 320) to 1.46 (epoch 600). Retaining grounding reaches 1.54 at epoch 500, then rises to 1.555 at epoch 600, a pattern consistent with mild late-stage overfitting. <span class="src">Fig. 3 left</span></figcaption>
+    </figure>
+    <figure class="fig" data-reveal>
+      <div class="rc-chart-right"></div>
+      <button type="button" class="rc-cmp" aria-pressed="false"><i class="rc-key rc-key-init" aria-hidden="true"></i><span>Overlay the from-initialization run</span></button>
+      <figcaption>Training starts with class dropout while grounding is retained; independent class and grounding dropout begins at epoch 160 <i class="rc-tri" role="img" aria-label="orange triangle"></i>. FID reaches 1.66, 1.50, and 1.48 at epochs 200, 320, and 480, versus 1.75, 1.59, and 1.54 with grounding retained. <span class="src">Fig. 3 right; overlay: Fig. 3 left, Tab. 14</span></figcaption>
+    </figure>
+  </div>
+  <div class="wrap rc-after">
+    <p class="takeaway" data-reveal><span class="tk">Takeaway</span>Grounding dropout plays two empirical roles: it matches the null-grounding distribution that CFG requires, and it is associated with steadier late-stage FID. It need not start at initialization.</p>
+    <p class="rc-note" data-reveal>A single delayed run suggests a curriculum: first learn the grounded denoising function, then spend a shorter phase on the matched null-grounding branch. GLIDE is an earlier precedent; it introduced text-condition dropout only during fine-tuning. <span class="src">§4.2, Fig. 3 right</span></p>
+    <p class="caveat">Unless stated otherwise, the paper applies class and grounding dropout from the start of training. The delayed run is reported separately (PixelDiT2-H*, FID 1.48 at epoch 480, Tab. 2).</p>
+  </div>
+  <div class="wrap rc-text mt-xl" data-reveal>
+    <h3>Sampling: Heun-50, guidance on an interval</h3>
+    <p>The guidance scale \(w\) and the interval are swept per backbone scale and epoch. <span class="src">§4, Tab. 10</span></p>
+  </div>
+  <div class="wide stage stage-pad rc-cfg">
+    <div class="stage-toolbar rc-cfg-bar">
+      <span class="stage-tag">Tab. 13 · H/16 · epoch 600 · Heun-50 · FID-50K</span>
+      <div class="seg" role="group" aria-label="Which sweep">
+        <button type="button" data-sweep="scale" aria-pressed="true">Guidance scale \(w\)</button>
+        <button type="button" data-sweep="interval" aria-pressed="false">Interval upper bound</button>
+      </div>
+    </div>
+    <div class="rc-cfg-grid">
+      <div class="rc-cfg-ctrl">
+        <label class="rc-cfg-lab" for="rc-cfg-range"><span data-f="ctl">Guidance scale \(w\), interval fixed at \([0.125, 0.9]\)</span></label>
+        <div class="rc-cfg-slider">
+          <input id="rc-cfg-range" class="range rc-cfg-range" type="range" min="0" max="3" step="1" value="0">
+          <div class="rc-cfg-ticks" aria-hidden="true"></div>
+        </div>
+        <div class="rc-cfg-read" aria-live="polite">
+          <div class="rc-m"><span class="rc-mk">setting</span><b data-f="set">w = 2.4, [0.125, 0.900]</b></div>
+          <div class="rc-m"><span class="rc-mk">FID-50K</span><b data-f="fid" class="rc-big">1.4622</b></div>
+          <div class="rc-m"><span class="rc-mk">IS</span><b data-f="is" class="rc-big">301.6</b></div>
+        </div>
+        <div class="rc-cfg-tstrip"></div>
+        <div class="rc-cfg-vec"></div>
+      </div>
+      <div class="rc-cfg-plot">
+        <div class="rc-cfg-legend" aria-hidden="true">
+          <span><i class="rc-dot rc-dot-g"></i>scale sweep, interval \([0.125, 0.9]\)</span>
+          <span><i class="rc-dot rc-dot-b"></i>interval sweep, \(w = 2.4\)</span>
+        </div>
+        <div class="rc-cfg-plane"></div>
+      </div>
+    </div>
+  </div>
+  <div class="wrap rc-text rc-cfg-after" data-reveal>
+    <p>Stronger guidance raises IS and FID together. Extending the interval's upper bound from 0.9 to 0.975 raises FID from 1.4622 to 1.6202, while IS moves from 301.6 to 303.2. The lowest FID in these one-dimensional sweeps, 1.4622, is at \(w = 2.4\) on \([0.125, 0.9]\), the headline configuration. <span class="src">App. B.3, Tab. 13</span></p>
+  </div>
+  <div class="wide rc-sampler">
+    <div class="rc-sampler-text" data-reveal>
+      <h4 class="rc-h4">Sampler at matched compute</h4>
+      <p>\(N\) Heun steps cost \(2N\) network evaluations (NFE); \(N\) Euler steps cost \(N\). At NFE = 100, Heun-50 reaches FID 1.50 and Euler-100 reaches 1.54. At NFE = 50 the order reverses: Heun-25 1.76, Euler-50 1.72. IS favors Euler-100, 300.8 vs. 292.2.</p>
+      <p>The paper reports Heun-50 because it is FID-optimal at matched compute. <span class="src">App. B.4</span></p>
+      <p class="caveat">This sweep uses H/16 at epoch 320, trained with delayed grounding dropout, and \(w = 2.4\) on \([0.1, 0.9]\). The CFG factor of two is paid by both samplers and omitted from NFE.</p>
+    </div>
+    <figure class="rc-sampler-fig card" data-reveal>
+      <div class="rc-samp" role="img" aria-label="Sampler comparison at matched NFE. NFE 100: Heun-50 FID 1.50, Euler-100 FID 1.54. NFE 50: Heun-25 FID 1.76, Euler-50 FID 1.72."></div>
+      <figcaption class="figcap">Each tick is one network evaluation. Heun ticks come in predictor and corrector pairs.</figcaption>
+    </figure>
+  </div>
+  <div class="wide rc-setup-wrap">
+    <details class="rc-setup">
+      <summary>
+        <span class="rc-sum-l">
+          <span class="rc-sum-t">Setup</span>
+          <span class="rc-sum-chips"></span>
+        </span>
+        <span class="rc-sum-r"><span class="src">Tab. 10</span><span class="rc-sum-cue" aria-hidden="true"></span></span>
+      </summary>
+      <div class="rc-setup-body">
+        <h4 class="rc-h4">Model configurations</h4>
+        <div class="tbl-wrap"><table class="tbl rc-t-models"></table></div>
+        <div class="grid-2 rc-setup-grid">
+          <div>
+            <h4 class="rc-h4">Training</h4>
+            <div class="tbl-wrap"><table class="tbl rc-t-kv rc-t-train"></table></div>
+          </div>
+          <div>
+            <h4 class="rc-h4">Sampling and evaluation</h4>
+            <div class="tbl-wrap"><table class="tbl rc-t-kv rc-t-infer"></table></div>
+          </div>
+        </div>
+        <p class="caveat">The grounding encoder runs on \(x_t\) in training and sampling. Unless stated otherwise, the DiT, \(\Pg\), and the REPA head are optimized jointly from scratch under one optimizer. The 512 px component counts are measured at epoch 680.</p>
+      </div>
+    </details>
+  </div>
+</section>
+<section class="sec" id="samples" aria-labelledby="samples-title">
+  <header class="sec-head wrap">
+    <p class="kicker"><span class="kicker-num">10</span> Samples</p>
+    <h2 id="samples-title">Selected and uncurated samples</h2>
+    <p class="lede">Class-conditional ImageNet samples from PixelDiT2: selected sets at 512×512 (Fig. 1) and 256×256 (PixelDiT2-H/16, Fig. 2), and uncurated sets at 256×256 (PixelDiT2-H/16, Figs. 6–7). Select any image to enlarge it.</p>
+  </header>
+  <div class="wide">
+    <figure class="stage sm-stage fig" data-reveal="scale" aria-label="PixelDiT2 sample gallery">
+      <div class="sm-bar">
+        <div class="seg sm-seg" role="group" aria-label="Sample set">
+          <button type="button" data-mode="s512" aria-pressed="false"><span class="sm-res">512×512</span><span class="sm-dot" aria-hidden="true"> · </span><span class="sm-kind">selected</span></button>
+          <button type="button" data-mode="s256" aria-pressed="true"><span class="sm-res">256×256</span><span class="sm-dot" aria-hidden="true"> · </span><span class="sm-kind">selected</span></button>
+          <button type="button" data-mode="unc" aria-pressed="false"><span class="sm-res">256×256</span><span class="sm-dot" aria-hidden="true"> · </span><span class="sm-kind">uncurated</span></button>
+        </div>
+        <div class="sm-tools">
+          <button type="button" class="sm-tool" data-act="grid" aria-pressed="false" title="Overlay the 16×16-pixel patch grid">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 1.5h13v13h-13zM1.5 6h13M1.5 10.5h13M6 1.5v13M10.5 1.5v13"/></svg>
+            <span>Patch grid</span>
+          </button>
+          <button type="button" class="sm-tool" data-act="replay" title="Replay the denoise-in animation">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.8-4.07M13.5 2v3.5H10"/></svg>
+            <span>Replay</span>
+          </button>
+        </div>
+      </div>
+      <dl class="sm-spec" aria-live="polite"></dl>
+      <div class="sm-chips-wrap" hidden>
+        <div class="sm-chips" role="group" aria-label="ImageNet class"></div>
+      </div>
+      <p class="sm-gridnote" aria-live="polite" hidden></p>
+      <div class="sm-view">
+        <div class="sm-grid"></div>
+      </div>
+      <div class="sm-t">
+        <div class="sm-t-eq" aria-hidden="true"></div>
+        <div class="sm-t-ctl">
+          <span class="sm-t-end">\(\varepsilon\)</span>
+          <input class="range sm-range" type="range" min="0" max="1" step="0.01" value="1" aria-label="Noise level t (1 is the clean sample, 0 is pure noise)">
+          <span class="sm-t-end">\(x\)</span>
+          <output class="t-readout sm-t-val">t = 1.00</output>
+        </div>
+        <p class="sm-t-note">The slider applies the forward process to finished samples <span class="nw">(\(t = 1\) clean,</span> <span class="nw">\(t = 0\) pure noise).</span> Tiles enter the same way. Neither is the model's sampling trajectory.</p>
+      </div>
+      <figcaption class="stage-cap sm-cap"><span class="sm-cap-text"></span> <span class="src sm-cap-src"></span></figcaption>
+    </figure>
+  </div>
+</section>
+<section class="sec" id="limits" aria-labelledby="limits-title">
+  <header class="sec-head wrap">
+    <p class="kicker"><span class="kicker-num">11</span> Limitations</p>
+    <h2 id="limits-title">What remains open</h2>
+  </header>
+  <div class="wide lm-grid" data-reveal-stagger="120">
+    <article class="lm-card" data-reveal>
+      <p class="lm-idx">01</p>
+      <h3 class="lm-h">The full gap to the best latent baselines is not closed</h3>
+      <p class="lm-p">On ImageNet 256×256, the best latent baselines still reach lower FID than PixelDiT2-H: RAE-XL 1.13 and REPA-E 1.15, against 1.46. <span class="src">Tab. 14</span></p>
+      <div class="lm-chart chart" id="lm-gap-chart"></div>
+      <p class="lm-foot">Selected latent-diffusion baselines from Tab. 14.</p>
+    </article>
+    <article class="lm-card" data-reveal>
+      <p class="lm-idx">02</p>
+      <h3 class="lm-h">The frozen encoder runs at every step</h3>
+      <p class="lm-p">Grounding evaluates \(\E\) on \(x_t\) at every sampling step, which adds inference cost: DINOv3-S/16 (21.6M parameters) at 256 px and DINOv3-B/16 (85.7M) at 512 px. <span class="src">Tab. 10</span></p>
+      <div class="lm-bars" role="img" aria-label="Parameter counts, PixelDiT2-H/16. 256 px: DiT 953M, P_g 33.6M, frozen DINOv3-S/16 21.6M, total 1008M. 512 px: DiT 954M, P_g 34.1M, frozen DINOv3-B/16 85.7M, total 1074M."></div>
+      <p class="lm-foot">PixelDiT2-H/16; parameter counts in millions. The REPA target, DINOv2-B/14, is training-only and is not counted.</p>
+    </article>
+  </div>
+  <div class="wrap lm-out">
+    <p class="lm-next" data-reveal><span class="lm-tag">Future work</span> Address both limitations, and apply the architecture to scaled text-to-image generation.</p>
+    <blockquote class="lm-quote" data-reveal>
+      <p>We hope our findings encourage future pixel-space generative models to treat representations not only as auxiliary training targets but as <em>active components of the denoising computation</em>.</p>
+    </blockquote>
+  </div>
+</section>
+<section class="sec" id="bibtex" aria-labelledby="bibtex-title">
+  <header class="sec-head wrap">
+    <p class="kicker">Citation</p>
+    <h2 id="bibtex-title">BibTeX</h2>
+  </header>
+  <div class="wrap">
+    <div class="bib" data-reveal>
+      <button class="btn btn--ghost bib-copy" type="button" data-copy="#bibtex-code">Copy</button>
+<pre class="bib-pre"><code id="bibtex-code"><span class="bl" style="--i:0"><span class="bk">@article</span>{<span class="bid">yu2026pixeldit2</span>,</span>
+<span class="bl" style="--i:1">  <span class="bf">title</span>   = {<span class="bv">PixelDiT2: Representation-Grounded Pixel Diffusion Transformers</span>},</span>
+<span class="bl" style="--i:2">  <span class="bf">author</span>  = {<span class="bv">Yu, Yongsheng and Xiong, Wei and Sheng, Yichen and Liu, Shiqiu and Luo, Jiebo</span>},</span>
+<span class="bl" style="--i:3">  <span class="bf">journal</span> = {<span class="bv">arXiv preprint arXiv:2609.24919</span>},</span>
+<span class="bl" style="--i:4">  <span class="bf">year</span>    = {<span class="bv">2026</span>}</span>
+<span class="bl" style="--i:5">}</span></code></pre>
+    </div>
+    <p class="bib-rel" data-reveal>PixelDiT2 builds on PixelDiT: <a href="https://pixeldit.github.io/">project page</a> · <a href="https://arxiv.org/abs/2511.20645">arXiv:2511.20645</a>.</p>
+  </div>
+</section>
+  </main>
+  <footer class="foot">
+    <div class="full">
+      <span>PixelDiT2 · <a href="https://arxiv.org/abs/2609.24919">arXiv:2609.24919</a></span>
+      <span>Also see <a href="https://pixeldit.github.io/">PixelDiT</a>. © 2026 NVIDIA.</span>
+    </div>
+  </footer>
+  <script src="assets/vendor/gsap/gsap.min.js"></script>
+  <script src="assets/vendor/gsap/ScrollTrigger.min.js"></script>
+  <script src="assets/vendor/katex/katex.min.js"></script>
+  <script src="assets/vendor/katex/auto-render.min.js"></script>
+  <script src="assets/js/lib/core.js"></script>
+  <script src="assets/js/lib/data.js"></script>
+  <script src="assets/js/lib/charts.js"></script>
+  <script src="assets/js/sections/10-hero.js"></script>
+  <script src="assets/js/sections/20-why.js"></script>
+  <script src="assets/js/sections/30-idea.js"></script>
+  <script src="assets/js/sections/40-method.js"></script>
+  <script src="assets/js/sections/50-position.js"></script>
+  <script src="assets/js/sections/60-results.js"></script>
+  <script src="assets/js/sections/70-repa.js"></script>
+  <script src="assets/js/sections/80-ablations.js"></script>
+  <script src="assets/js/sections/90-inside.js"></script>
+  <script src="assets/js/sections/95-recipe.js"></script>
+  <script src="assets/js/sections/97-samples.js"></script>
+  <script src="assets/js/sections/98-limits.js"></script>
+  <script src="assets/js/sections/99-bibtex.js"></script>
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

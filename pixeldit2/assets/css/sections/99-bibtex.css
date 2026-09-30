@@ -1,0 +1,30 @@
+
+#bibtex .bib {
+  position: relative; background: var(--paper-2); border: 1px solid var(--hair); border-radius: var(--radius);
+  overflow: hidden;
+}
+#bibtex .bib::before { 
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--nv-grad);
+}
+#bibtex .bib-pre {
+  margin: 0; padding: 20px 22px 20px 24px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.8; color: var(--ink-2); tab-size: 2;
+  white-space: pre;
+}
+#bibtex .bib-pre code { font: inherit; }
+#bibtex .bl { display: inline-block; }
+#bibtex .bk { color: var(--nv-800); font-weight: 500; }
+#bibtex .bid { color: var(--ink); font-weight: 500; }
+#bibtex .bf { color: var(--muted); }
+#bibtex .bv { color: var(--ink); }
+#bibtex .bib .bl { clip-path: inset(0 100% 0 0); transition: clip-path .7s var(--ease-smooth); transition-delay: calc(var(--i, 0) * 110ms + 150ms); }
+#bibtex .bib.is-write .bl, .pd2-reduced #bibtex .bib .bl { clip-path: inset(0 0 0 0); }
+.pd2-reduced #bibtex .bib .bl { transition: none; }
+#bibtex .bib-copy { position: absolute; top: 10px; right: 10px; z-index: 1; padding: 5px 14px; font-size: 13px; background: var(--card); }
+@media (pointer: coarse) { #bibtex .bib-copy { min-height: 36px; padding-inline: 16px; } }
+#bibtex .bib-copy.is-copied { background: var(--nv-100); border-color: var(--nv-200); color: var(--nv-900); }
+#bibtex .bib-rel { margin-top: 16px; font-size: 15px; color: var(--ink-3); }
+@media (max-width: 720px) {
+  #bibtex .bib-pre { white-space: pre-wrap; padding: 48px 16px 16px 18px; font-size: 12.5px; }
+  #bibtex .bl { width: 100%; padding-left: 12ch; text-indent: -12ch; overflow-wrap: anywhere; }
+}
